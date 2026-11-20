@@ -113,6 +113,13 @@ tr.sug:hover { background: var(--panel-2); cursor: pointer; }
 .chip-t { display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; padding: 1px 6px; border-radius: 3px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
 .warnrow { box-shadow: inset 3px 0 0 var(--warn); }
 section[hidden] { display: none !important; }
+.btn.hr { border-color: #5BB030; color: #8fdc6a; }
+#hrmodal { position: fixed; inset: 0; background: #000a; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 20px; }
+#hrmodal[hidden] { display: none; }
+.hrbox { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; width: min(1200px, 100%); height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.hrbar { padding: 10px 14px; border-bottom: 1px solid var(--line); gap: 12px; }
+.hrbar b { font: 700 18px var(--display); text-transform: uppercase; margin-right: auto; }
+#hrframe { flex: 1; border: 0; background: #fff; }
 #detail { background: var(--panel-2); border: 1px solid var(--accent); border-radius: 8px; padding: 12px; display: none; }
 #detail.on { display: block; }
 #detail .x { float: right; background: none; border: 0; color: var(--muted); font-size: 18px; line-height: 1; }
@@ -180,6 +187,7 @@ section[hidden] { display: none !important; }
       <div class="note" id="snote"></div>
       <div class="tablebox"><table><thead><tr><th>LPN / SKU</th><th>Días</th><th>Destino sugerido</th></tr></thead><tbody id="sbody"></tbody></table></div>
       <div class="row" style="margin-top:8px">
+        <button class="btn hr" data-hr="stage">Hoja de ruta</button>
         <button class="btn primary" id="adc">Descargar ADC (CSV)</button>
         <button class="btn" id="adccopy">Copiar ADC</button>
         <span class="note" id="adcmsg"></span>
@@ -209,6 +217,7 @@ section[hidden] { display: none !important; }
       <div class="tabs" id="p19tabs"></div>
       <div class="tablebox"><table><thead><tr><th>LPN / SKU</th><th>Días</th><th>Origen → destino</th></tr></thead><tbody id="p19body"></tbody></table></div>
       <div class="row" style="margin-top:8px">
+        <button class="btn hr" data-hr="p19">Hoja de ruta</button>
         <button class="btn primary" id="p19adc">Descargar ADC (CSV)</button>
         <button class="btn" id="p19copy">Copiar ADC</button>
         <span class="note" id="p19msg"></span>
@@ -221,6 +230,7 @@ section[hidden] { display: none !important; }
       <div class="tabs" id="filltabs"></div>
       <div class="tablebox"><table><thead><tr><th>LPN / SKU</th><th>Días</th><th>Origen → destino</th></tr></thead><tbody id="fillbody"></tbody></table></div>
       <div class="row" style="margin-top:8px">
+        <button class="btn hr" data-hr="fill">Hoja de ruta</button>
         <button class="btn primary" id="filladc">Descargar ADC (CSV)</button>
         <button class="btn" id="fillcopy">Copiar ADC</button>
         <span class="note" id="fillmsg"></span>
@@ -234,6 +244,7 @@ section[hidden] { display: none !important; }
       <div class="tabs" id="c5tabs"></div>
       <div class="tablebox"><table><thead><tr><th>LPN / SKU</th><th>Días</th><th>Origen → percha</th></tr></thead><tbody id="c5body"></tbody></table></div>
       <div class="row" style="margin-top:8px">
+        <button class="btn hr" data-hr="c5">Hoja de ruta</button>
         <button class="btn primary" id="c5adc">Descargar ADC (CSV)</button>
         <button class="btn" id="c5copy">Copiar ADC</button>
         <span class="note" id="c5msg"></span>
@@ -241,6 +252,20 @@ section[hidden] { display: none !important; }
     </section>
   </aside>
 </main>
+<div id="hrmodal" role="dialog" aria-modal="true" aria-labelledby="hrtit" hidden>
+  <div class="hrbox">
+    <div class="row hrbar">
+      <b id="hrtit">Hoja de ruta para el gruero</b>
+      <label class="note">Formato
+        <select id="hrmodo" class="search" style="width:auto"><option value="continuo">Continuo (ahorra papel)</option><option value="pasillo">Una hoja por pasillo</option></select>
+      </label>
+      <button class="btn primary" id="hrdl">Descargar para imprimir</button>
+      <button class="btn" id="hrclose">Cerrar</button>
+      <span class="note" id="hrmsg"></span>
+    </div>
+    <iframe id="hrframe" title="Vista previa de la hoja de ruta"></iframe>
+  </div>
+</div>
 <script src="model.js"></script>
 <script src="app.js"></script>
 </body>

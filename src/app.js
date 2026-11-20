@@ -552,6 +552,40 @@
     if (S.panel === 'c5') fit([AREAS.c5[0] - 4, AREAS.c5[1] - 4, AREAS.c5[2] + 8, AREAS.c5[3] + 8]);
   };
 
+  // ---------- Hoja de ruta para imprimir ----------
+  const HR = {
+    stage: { titulo: 'Guardado Stage C1 / Hoja de Ruta', agrupar: 'origen', rows: () => (S.sug || []).filter(x => x.destino), tag: () => S.stageTab },
+    p19: { titulo: 'Consolidación Pasillo 19 / Hoja de Ruta', agrupar: 'origen', rows: () => S.p19rows || [], tag: () => S.p19tab },
+    fill: { titulo: 'Llenado de Ubicaciones / Hoja de Ruta', agrupar: 'destino', rows: () => S.fillrows || [], tag: () => S.filltab },
+    c5: { titulo: 'Traslado a Carpa C5 (REBA-02) / Hoja de Ruta', agrupar: 'origen', rows: () => S.c5rows || [], tag: () => S.c5tab }
+  };
+  let hrCur = null;
+  const emision = () => { const d = new Date(); return d.toLocaleDateString('es-CL') + ' ' + d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' hrs'; };
+  function hrHTML() {
+    const c = HR[hrCur], rows = c.rows();
+    const filtros = 'Vista: ' + c.tag() + ' · Fuente: ' + (S.files[S.main] ? S.files[S.main].name : '');
+    return M.hojaRuta(rows, { titulo: c.titulo, emision: emision(), agrupar: c.agrupar, modo: $('hrmodo').value, filtros });
+  }
+  function openHR(k) {
+    hrCur = k; const rows = HR[k].rows();
+    $('hrmsg').textContent = rows.length ? rows.length + ' tareas' : 'No hay movimientos en esta vista.';
+    $('hrframe').srcdoc = '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"></head><body>' + hrHTML() + '</body></html>';
+    $('hrmodal').hidden = false; $('hrclose').focus();
+  }
+  document.querySelectorAll('[data-hr]').forEach(b => b.addEventListener('click', () => openHR(b.dataset.hr)));
+  $('hrmodo').onchange = () => { if (hrCur) openHR(hrCur); };
+  $('hrclose').onclick = () => { $('hrmodal').hidden = true; };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('hrmodal').hidden = true; });
+  $('hrdl').onclick = async () => {
+    const m = $('hrmsg');
+    if (!HR[hrCur].rows().length) { m.textContent = 'No hay movimientos para imprimir.'; return; }
+    const doc = '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>' + HR[hrCur].titulo + '</title></head><body>' + hrHTML() +
+      '<div class="no-print" style="text-align:center;margin:14px"><button class="btn" onclick="window.print()">🖨️ Imprimir hoja</button></div><script>window.addEventListener("load",function(){setTimeout(function(){window.print()},300)})<\/script></body></html>';
+    if (!downloads) { m.textContent = 'La descarga no está disponible aquí.'; return; }
+    try { await downloads.save({ filename: 'hoja_ruta_' + hrCur + '_' + today() + '.html', data: doc }); m.textContent = 'Descargada: ábrela y se abre el diálogo de impresión.'; }
+    catch (err) { m.textContent = 'No se descargó (' + (err && err.message || 'cancelado') + ').'; }
+  };
+
   // ---------- Carga de datos ----------
   function ingest(name, text, user) {
     const p = M.parseCSV(text), kind = M.detectKind(p.headers);

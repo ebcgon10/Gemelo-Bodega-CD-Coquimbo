@@ -512,6 +512,52 @@
       sinClasificar: units.filter(u => !(bbdd && bbdd.has(u.sku))).length };
   }
 
+  // ---------- Hoja de ruta imprimible (mismo formato que Reabasto ZM / Llenado ZM_CAJA) ----------
+  const escH = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const grupoDe = id => /^\d\d-/.test(id) ? 'Pasillo ' + id.slice(0, 2) : /^STREC/.test(id) ? 'Stage C1 · ' + id : /^REBA-02/.test(id) ? 'Carpa C5 · REBA-02' : id;
+  function hojaRuta(rows, o) {
+    o = Object.assign({ titulo: 'Hoja de Ruta', emision: '', agrupar: 'origen', modo: 'continuo', filtros: '' }, o || {});
+    const ord = { liberar: 0, completar: 1, asignar: 2 };
+    const key = r => grupoDe(o.agrupar === 'destino' ? r.destino : r.origen);
+    const grupos = new Map();
+    rows.slice().sort((a, b) => key(a).localeCompare(key(b)) || ((ord[a.tipo] ?? 1) - (ord[b.tipo] ?? 1)) || String(a.origen).localeCompare(String(b.origen)))
+      .forEach(r => { const k = key(r); if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(r); });
+    const primero = [...grupos].filter(([, rs]) => rs.some(r => r.tipo === 'liberar')), resto = [...grupos].filter(([, rs]) => !rs.some(r => r.tipo === 'liberar'));
+    grupos.clear(); [...primero, ...resto].forEach(([k, rs]) => grupos.set(k, rs));
+    const tot = rs => ` &nbsp;·&nbsp; Pallets: ${rs.length} &nbsp;·&nbsp; Cajas: ${rs.reduce((s, r) => s + (+r.qty || 0), 0).toLocaleString('es-CL')}`;
+    const TIPO = { completar: 'Completar', asignar: 'Asignar', liberar: 'Liberar 1º' };
+    const tabla = rs => `<table class="data-table"><thead><tr><th>#</th><th>SKU</th><th>Descripción producto</th><th>LPN</th><th>Vence (días)</th><th>Origen</th><th>Destino</th><th>Cantidad</th><th>Check (✓)</th></tr></thead><tbody>` +
+      rs.map((r, i) => `<tr><td class="c">${i + 1}</td><td class="mono b">${escH(r.sku)}</td><td>${escH(r.desc)}${r.tipo ? ` <span class="tag">${escH(TIPO[r.tipo] || r.tipo)}</span>` : ''}${r.avisoFefo ? ' <span class="tag warn">FEFO</span>' : ''}</td><td class="c mono">${escH(String(r.lpn || '').slice(-10))}</td><td class="c">${r.vu ?? ''}</td><td class="c b org">${escH(r.origen)}</td><td class="c b dst">${escH(r.destino)}</td><td class="c b qty">1 PALLET<br><span class="small">${(+r.qty || 0).toLocaleString('es-CL')} cj</span></td><td class="chk"></td></tr>`).join('') + '</tbody></table>';
+    const encab = (rs, t) => `<table class="header-table"><tr><td class="title">${escH(o.titulo)}</td><td class="r small"><strong>Fecha emisión:</strong> ${escH(o.emision)}</td></tr><tr><td class="sub"><strong>${escH(t)}</strong> &nbsp;·&nbsp; Tareas: ${rs.length}${tot(rs)}</td><td class="r small">${escH(o.filtros)}</td></tr></table>`;
+    const firmas = '<table class="firmas"><tr><td>Operario: ____________________</td><td>Hora inicio: ______</td><td>Hora término: ______</td><td>Firma: ____________________</td></tr></table>';
+    let cuerpo;
+    if (o.modo === 'pasillo') cuerpo = [...grupos].map(([k, rs]) => `<div class="report-card">${encab(rs, k)}${tabla(rs)}${firmas}</div>`).join('<div class="salto"></div>');
+    else cuerpo = `<div class="report-card">${encab(rows, [...grupos.keys()].join(', '))}` + [...grupos].map(([k, rs]) => `<div class="seccion"><div class="sec-tit">${escH(k)} &nbsp;·&nbsp; Tareas: ${rs.length}${tot(rs)}</div>${tabla(rs)}</div>`).join('') + `${firmas}</div>`;
+    return `<style>
+      body { font-family: Arial, sans-serif; background:#fff; margin:12px; }
+      .report-card { border:2px solid #1E293B; border-radius:8px; padding:18px; margin-bottom:18px; background:#FFFFFF; color:#0F172A; }
+      .header-table { width:100%; border-collapse:collapse; margin-bottom:10px; } .header-table td { padding:3px; }
+      .title { font-size:20px; font-weight:bold; text-transform:uppercase; letter-spacing:1px; }
+      .sub { font-size:14px; color:#334155; } .small { font-size:11px; color:#475569; } .r { text-align:right; }
+      .data-table { width:100%; border-collapse:collapse; margin-top:8px; }
+      .data-table th { background:#1E293B; color:#fff; border:1px solid #1E293B; padding:7px 5px; font-size:12px; text-transform:uppercase; }
+      .data-table td { border:1px solid #94A3B8; padding:7px 5px; font-size:13px; }
+      .data-table tr:nth-child(even) td { background:#F8FAFC; }
+      .c { text-align:center; } .b { font-weight:bold; } .mono { font-family:monospace; font-size:13px; }
+      .org { color:#1E3A8A; font-size:14px; } .dst { color:#065F46; font-size:14px; } .qty { font-size:15px; } .chk { width:70px; }
+      .tag { display:inline-block; font-size:10px; font-weight:bold; border:1px solid #64748B; border-radius:3px; padding:0 4px; color:#334155; }
+      .tag.warn { border-color:#B45309; color:#B45309; }
+      .seccion { margin-top:12px; } .sec-tit { font-size:14px; font-weight:bold; color:#fff; background:#5BB030; padding:5px 8px; border-radius:4px; }
+      .firmas { width:100%; margin-top:14px; font-size:12px; } .firmas td { padding-top:10px; }
+      .btn { background:#5BB030; color:#fff; font-weight:bold; padding:10px 24px; font-size:15px; border:none; border-radius:6px; cursor:pointer; }
+      @media print { body { margin:0; } .no-print { display:none !important; } .report-card { border:none; padding:0; margin:0; }
+        .salto { page-break-after:always; break-after:page; } .data-table tr { page-break-inside:avoid; } .data-table thead { display:table-header-group; }
+        .data-table th { padding:4px; font-size:11px; -webkit-print-color-adjust:exact; print-color-adjust:exact; } .data-table td { padding:4px; font-size:12px; }
+        .sec-tit { break-after:avoid; page-break-after:avoid; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+        @page { size: A4 landscape; margin: 10mm; } }
+    </style>${cuerpo}`;
+  }
+
   // Informe de picking bloqueado / mal asignado.
   function pickingReport(model) {
     const desc = {}, out = [];
@@ -544,5 +590,5 @@
     return { side: 'R', i: m - k - 3, k };
   }
 
-  return { parseBBDD, moveToC5, C5, PERCHA_PICK, perchaCap, modulePlace, consolidateP19, fillPicking, parseCaps, pickingReport, parsePrefs, parseZonas, LAYOUT, CAP_P19, STAGE_IDS, parseCSV, detectKind, parseUbic, parseFecha, normalize, buildModel, suggestStage, suggestAll, countPallets };
+  return { hojaRuta, parseBBDD, moveToC5, C5, PERCHA_PICK, perchaCap, modulePlace, consolidateP19, fillPicking, parseCaps, pickingReport, parsePrefs, parseZonas, LAYOUT, CAP_P19, STAGE_IDS, parseCSV, detectKind, parseUbic, parseFecha, normalize, buildModel, suggestStage, suggestAll, countPallets };
 });

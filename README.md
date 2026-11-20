@@ -15,7 +15,7 @@ Plano interactivo de la bodega del CD Coquimbo que pinta cada posición con los 
 - **Llenado de picking**: llena cada ubicación de surtido hasta su capacidad con LPN completos (FEFO, restos primero) para liberar posiciones.
 - **Carpa C5 (REBA-02)**: traslado de aguas (centro 8006) y gaseosas (9006) según la BBDD de materiales, desde STREC, racks y pasillo 19,
   con plan de una percha por código.
-- Todo movimiento se exporta como **ADC** (control de cambios).
+- Todo movimiento se exporta como **ADC** (control de cambios) y como **hoja de ruta imprimible** para el gruero (mismo formato que Reabasto ZM: por pasillo, check y firmas, A4 apaisado).
 
 Los datos se procesan solo en el navegador; no se envían a ningún servidor.
 
