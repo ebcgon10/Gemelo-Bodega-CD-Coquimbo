@@ -14,7 +14,7 @@
   const PERCHAS_P2 = [['P1 · 133', 73.6, 4.4], ['P2 · 200', 88.3, 4.9]];
   const AREAS = {
     bodega: [0, 0, 125.8, 33], c1: [18.2, 34.2, 19.5, 13.2], c2: [38.7, 34.2, 38.4, 13.2], c3: [78.3, 34.2, 38.8, 13.2],
-    c4: [107.5, 48.4, 9.6, 27.6], c5: [109.7, 97.4, 33.8, 42.2], b2: [-26.2, 35.7, 18.4, 71.3],
+    c4: [107.5, 48.4, 9.6, 27.6], c5: [111.6, 96, 30, 45], b2: [-26.2, 35.7, 18.4, 71.3],
     ed5: [3.2, 105.8, 22.8, 13.7], sub: [-23.6, -9, 9.3, 18.7]
   };
   const VIEW_ALL = [-32, -14, 180, 158], VIEW_BOD = [-4, -5, 134, 57];
@@ -44,7 +44,7 @@
   }
 
   // ---------- Estado ----------
-  const S = { panel: 'resumen', p19tab: 'todos', filltab: 'todos', ref: {}, zt: '', ptab: 'doble_altura', report: [], files: {}, main: null, model: null, mode: 'occ', lvl: 0, q: '', stageTab: 'STREC01', sug: [], cells: new Map(), vb: VIEW_BOD.slice(), hl: null };
+  const S = { panel: 'resumen', p19tab: 'todos', filltab: 'todos', c5tab: 'todos', ref: {}, zt: '', ptab: 'doble_altura', report: [], files: {}, main: null, model: null, mode: 'occ', lvl: 0, q: '', stageTab: 'STREC01', sug: [], cells: new Map(), vb: VIEW_BOD.slice(), hl: null };
 
   const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const C = {};
@@ -72,7 +72,7 @@
     rectA(AREAS.b2, { fill: '#18212c', stroke: ln, 'stroke-width': .2 }, g);
     rectA(AREAS.ed5, { fill: '#2a1d16', stroke: '#5a3a28', 'stroke-width': .2 }, g);
     rectA(AREAS.sub, { fill: '#10302b', stroke: '#1f7a6b', 'stroke-width': .2 }, g);
-    for (const k of ['c2', 'c3', 'c4', 'c5']) rectA(AREAS[k], { fill: 'none', stroke: ln, 'stroke-width': .2, 'stroke-dasharray': '.8 .5' }, g);
+    for (const k of ['c2', 'c3', 'c4']) rectA(AREAS[k], { fill: 'none', stroke: ln, 'stroke-width': .2, 'stroke-dasharray': '.8 .5' }, g);
     rectA(AREAS.c1, { fill: '#1d1a10', stroke: C['--accent'], 'stroke-width': .3 }, g);
     // perchas P1 y P2 de Picking 2 (render Revit)
     for (const [n, x, w] of PERCHAS_P2) { label(x + w / 2, RACK_TOP + RACK_LEN + 1.6, n, { fill: '#e08a3a', 'font-size': 1.2, 'font-weight': 600 }, g); }
@@ -89,9 +89,10 @@
     label(AREAS.b2[0] + AREAS.b2[2] / 2, AREAS.b2[1] - 1, 'BODEGA 2 · P18', { fill: C['--ink'] }, g);
     label(AREAS.ed5[0] + 4, AREAS.ed5[1] - 1, 'P17 · bodega chica', { fill: C['--ink'] }, g);
     label(AREAS.sub[0] + AREAS.sub[2] / 2, AREAS.sub[1] + AREAS.sub[3] / 2, 'SUBESTÁNDAR', { 'font-size': 1.3 }, g);
-    for (const k of ['c2', 'c3', 'c4', 'c5']) { const a = AREAS[k]; label(a[0] + a[2] / 2, a[1] + a[3] / 2 + .6, k.toUpperCase() + ' · staging', { 'font-size': 1.6 }, g); }
+    for (const k of ['c2', 'c3', 'c4']) { const a = AREAS[k]; label(a[0] + a[2] / 2, a[1] + a[3] / 2 + .6, k.toUpperCase() + ' · staging', { 'font-size': 1.6 }, g); }
     label(AREAS.c1[0] + AREAS.c1[2] / 2, AREAS.c1[1] + AREAS.c1[3] + 2, 'C1 · STAGE DE RECEPCIÓN', { fill: C['--accent'], 'font-weight': 700 }, g);
     el('g', { id: 'cells' }, svg);
+    el('g', { id: 'c5' }, svg);
     el('g', { id: 'stage' }, svg);
     el('g', { id: 'hl' }, svg);
   }
@@ -170,7 +171,7 @@
       r.setAttribute('stroke-width', .18);
     }
     $('qres').textContent = (S.q || S.zt) ? hits + ' posiciones' : '';
-    drawStage(); drawLegend();
+    drawStage(); drawC5(); drawLegend();
   }
 
   function drawStage() {
@@ -196,6 +197,49 @@
     }
   }
 
+  // Carpa C5 · REBA-02 (propuesta 30 × 45 m: 5 + 8 + 5 corridas, 30 filas de 1,30 m)
+  function drawC5() {
+    const g = svg.querySelector('#c5'); g.innerHTML = '';
+    const m = S.model, a = AREAS.c5, cfg = M.C5, pal = m ? m.c5.pallets : 0;
+    const VIO = '#a970d6';
+    rectA(a, { fill: '#17121d', stroke: VIO, 'stroke-width': .35, rx: .4 }, g);
+    label(a[0] + a[2] / 2, a[1] - 1.2, 'C5 · REBA-02 · GASEOSAS Y AGUAS', { fill: VIO, 'font-weight': 700, 'font-size': 1.7 }, g);
+    const x0 = a[0] + .5, y0 = a[1] + .5 + 5, fh = 1.3;
+    const cols = [[x0, 5.5, cfg.lateral], [x0 + 5.5 + 4.6, 4.4, cfg.central], [x0 + 5.5 + 4.6 + 4.4, 4.4, cfg.central], [x0 + 5.5 + 4.6 + 8.8 + 4.6, 5.5, cfg.lateral]];
+    let resto = pal;   // sin plan: los pallets de REBA-02 se reparten en orden (vista de llenado)
+    const plan = S.panel === 'c5' && S.c5 ? S.c5.perchas : null;
+    const grp = el('g', { 'data-c5': '1', style: 'cursor:pointer' }, g);
+    let idx = 0;
+    for (let f = 0; f < cfg.filas; f++) for (const [cx, w, cap] of cols) {
+      const y = y0 + f * fh, pp = plan && plan[idx]; idx++;
+      const used = pp ? pp.pallets : Math.max(0, Math.min(cap, resto)); if (!pp) resto -= used;
+      rectA([cx + .05, y + .08, w - .1, fh - .16], { fill: '#1b3a2f', stroke: '#2a3644', 'stroke-width': .04, 'data-c5p': pp ? idx - 1 : '' }, grp);
+      if (used) {
+        const ex = pp ? pp.existente : used;
+        if (ex) rectA([cx + .05, y + .08, (w - .1) * ex / cap, fh - .16], { fill: C['--occ-2'], 'pointer-events': 'none' }, grp);
+        if (pp && used > ex) rectA([cx + .05 + (w - .1) * ex / cap, y + .08, (w - .1) * (used - ex) / cap, fh - .16], { fill: '#a970d6', 'pointer-events': 'none' }, grp);
+      }
+    }
+    for (const xa of [x0 + 5.5 + 2.3, x0 + 5.5 + 4.6 + 8.8 + 2.3]) label(xa, y0 + 20, 'GRÚA', { 'font-size': 1, transform: `rotate(-90 ${xa} ${y0 + 20})`, 'letter-spacing': .3 }, g);
+    // recuadro REBA-02 en la zona de maniobra
+    const b = [a[0] + 1.5, a[1] + .8, 18, 4.4], pct = (plan ? S.c5.ocupacionFinal : pal) / cfg.capacidad;
+    rectA(b, { fill: VIO, 'fill-opacity': .18, stroke: VIO, 'stroke-width': .2, rx: .3 }, grp);
+    label(b[0] + 1, b[1] + 2.7, 'REBA-02', { fill: C['--ink'], 'font-size': 1.6, 'font-weight': 700, 'text-anchor': 'start', 'pointer-events': 'none' }, grp);
+    label(b[0] + 9, b[1] + 1.8, (plan ? `${pal.toLocaleString('es-CL')} → ${S.c5.ocupacionFinal.toLocaleString('es-CL')} plan / ` : `${pal.toLocaleString('es-CL')} / `) + `${cfg.capacidad.toLocaleString('es-CL')} pallets`, { fill: C['--ink'], 'font-size': 1.1, 'text-anchor': 'start', 'pointer-events': 'none' }, grp);
+    rectA([b[0] + 9, b[1] + 2.6, 8.4, .7], { fill: '#0b1016', 'pointer-events': 'none' }, grp);
+    rectA([b[0] + 9, b[1] + 2.6, 8.4 * Math.min(1, pct), .7], { fill: VIO, 'pointer-events': 'none' }, grp);
+    label(a[0] + a[2] - 4, a[1] + 3.6, '▲ ACCESO', { fill: '#5aa0e0', 'font-size': 1.1, 'font-weight': 600 }, g);
+    label(a[0] + a[2] / 2, a[1] + a[3] - .9, '120 perchas · laterales 14 (5+5+4) · centrales 11 (4+4+3)', { 'font-size': .95 }, g);
+  }
+  function showC5() {
+    const m = S.model, c = m.c5, D = $('detail');
+    const by = {};
+    for (const i of c.items) { const k = i.sku; (by[k] = by[k] || { desc: i.desc, lpn: new Set(), qty: 0, vu: i.vu }).lpn.add(i.lpn || i.ubic + i.sku); by[k].qty += i.qty; if (i.vu !== null && (by[k].vu === null || i.vu < by[k].vu)) by[k].vu = i.vu; }
+    const rows = Object.entries(by).sort((x, y) => y[1].lpn.size - x[1].lpn.size).map(([k, v]) => `<tr><td>${esc(v.desc)}<br><span class="note mono">${esc(k)}</span></td><td class="mono">${v.lpn.size}</td><td>${vuBadge(v.vu)}</td></tr>`).join('');
+    D.innerHTML = `<button class="x" aria-label="Cerrar">×</button><div class="mono" style="font-size:18px;color:#a970d6">C5 · REBA-02</div><div class="note">Carpa de almacenamiento · solo gaseosas y aguas · 120 perchas (60 × 14 + 60 × 11)</div><div style="margin:6px 0"><b>${fmt(c.pallets)}</b> de ${fmt(c.capacidad)} pallets · ${fmt(c.skus)} códigos</div>${rows ? `<div class="tablebox" style="max-height:240px"><table><thead><tr><th>Producto</th><th>Pallets</th><th>Días</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="note">REBA-02 aún no tiene stock en el archivo cargado.</div>'}`;
+    D.classList.add('on'); D.querySelector('.x').onclick = () => D.classList.remove('on');
+  }
+
   function drawLegend() {
     const L = $('legend');
     if (S.mode === 'occ') L.innerHTML =
@@ -217,13 +261,31 @@
       <div class="kpi free"><div class="v">${fmt(k.libres)}</div><div class="l">libres reales${m.hasPrefs ? ` (${fmt(k.total - k.ocupadas)} vacías en el sistema, ${fmt(k.asignadasVacias)} con preferencia)` : ''}</div></div>
       <div class="kpi"><div class="v">${pct(k.pctOcc)}</div><div class="l">ocupación sobre capacidad real</div><div class="meter"><span style="width:${Math.round(k.pctOcc * 100)}%"></span></div></div>
       <div class="kpi free"><div class="v">${fmt(k.p19.libres)}</div><div class="l">pallets libres Bodega 1 (${fmt(k.p19.pallets)} de ${fmt(k.p19.capacidad)})</div></div>
+      <div class="kpi" style="border-left:3px solid #a970d6"><div class="v">${fmt(m.c5.pallets)}</div><div class="l">pallets en C5 · REBA-02 de ${fmt(m.c5.capacidad)}</div><div class="meter"><span style="width:${Math.min(100, m.c5.pallets / m.c5.capacidad * 100)}%;background:#a970d6"></span></div></div>
       <div class="kpi stage"><div class="v">${fmt(k.stageLpn)}</div><div class="l">LPN en stage C1 por guardar${sinDest ? ` · <span style="color:var(--crit)">${fmt(sinDest)} sin espacio libre</span>` : ''}</div></div>
       <div class="kpi crit" style="grid-column:span 2"><div class="row" style="justify-content:space-between"><div><div class="v" style="color:var(--crit)">${fmt(k.vence30)}</div><div class="l">posiciones con producto a ≤ 30 días de vencer</div></div><button class="btn" id="seevu">Ver en el plano</button></div></div>`;
     $('seevu').onclick = () => setMode('vu');
     $('levels').innerHTML = k.porNivel.map(n => `<div><b>${fmt(n.libres)}</b><small>N${n.n} libres${n.bloq ? ` · <span style="color:var(--alt)">${fmt(n.bloq)} bloq.</span>` : ''}</small></div>`).join('');
     const rk = k.porPasillo.filter(x => x.p !== 17 && x.p !== 19).sort((a, b) => b.libres - a.libres);
     $('rank').innerHTML = rk.map(x => `<button data-p="${x.p}" title="Ver pasillo ${x.p}"><span class="n">P${pad(x.p)}</span><span class="bar"><span class="o" style="width:${x.ocup / x.total * 100}%"></span><span style="background:var(--asig);width:${Math.max(0, x.total - x.ocup - x.bloq - x.libres) / x.total * 100}%"></span><span style="background:var(--alt);width:${x.bloq / x.total * 100}%"></span><span class="f" style="width:${x.libres / x.total * 100}%"></span></span><span class="c">${x.libres} libres</span></button>`).join('');
-    renderStage(); renderPicking(); renderP19(); renderFill();
+    renderStage(); renderPicking(); renderP19(); renderFill(); renderC5();
+  }
+  function renderC5() {
+    const m = S.model, bb = S.ref.bbdd && S.ref.bbdd.data;
+    if (!bb) { S.c5 = null; S.c5rows = []; $('c5kpi').innerHTML = '<div class="note" style="grid-column:span 2">Carga la BBDD de materiales (con columna Centro) para saber qué códigos son aguas y gaseosas.</div>'; $('c5tabs').innerHTML = ''; $('c5body').innerHTML = ''; return; }
+    S.c5 = M.moveToC5(m, bb, { ventana: +$('c5ven').value });
+    const r = S.c5, usadas = r.perchas.filter(p => p.sku).length;
+    $('c5kpi').innerHTML = `<div class="kpi" style="border-left:3px solid #a970d6"><div class="v">${fmt(r.moves.length)}</div><div class="l">pallets hacia C5 · carpa queda en ${fmt(r.ocupacionFinal)} de ${fmt(r.capacidad)} · ${usadas} de 120 perchas</div></div>
+      <div class="kpi free"><div class="v">${fmt(r.liberadas)}</div><div class="l">posiciones de racks liberadas</div></div>
+      <div class="kpi stage"><div class="v">${fmt(r.stageLpn)}</div><div class="l">LPN que salen del stage C1</div></div>
+      <div class="kpi"><div class="v">${fmt(r.p19Pallets)}</div><div class="l">pallets que salen del pasillo 19</div></div>
+      ${r.sinEspacio ? `<div class="kpi crit" style="grid-column:span 2"><div class="v" style="color:var(--warn)">${fmt(r.sinEspacio)}</div><div class="l">pallets de aguas y gaseosas que no caben: las 120 perchas ya tienen código (una por código). Entran primero los códigos con más volumen.</div></div>` : ''}`;
+    const f = { todos: () => true, stage: x => x.origenTipo === 'stage', rack: x => x.origenTipo === 'rack', p19: x => x.origenTipo === 'p19' };
+    const tabs = { todos: 'Todos', stage: 'Desde STREC', rack: 'Desde racks', p19: 'Desde P19' };
+    $('c5tabs').innerHTML = Object.keys(tabs).map(t => `<button data-t="${t}" aria-pressed="${t === S.c5tab}">${tabs[t]}<em>${r.moves.filter(f[t]).length}</em></button>`).join('');
+    S.c5rows = r.moves.filter(f[S.c5tab]).map(x => Object.assign({}, x, { destino: 'REBA-02 · ' + x.percha }));
+    $('c5body').innerHTML = moveRows(S.c5rows);
+    if (S.panel === 'c5') drawC5();
   }
 
   // ---------- Módulos de movimientos ----------
@@ -300,6 +362,9 @@
     if (!id) return null;
     const c = S.cells.get(String(id).slice(0, 8)); if (c) return c.G;
     const b = S.stageBoxes && S.stageBoxes[id]; if (b) return { x: b[0], y: b[1], w: b[2], h: b[3] };
+    const pm = /^REBA-02 · F(\d+)-(L|CO|CE|E)$/.exec(id);
+    if (pm) { const a = AREAS.c5, x0 = a[0] + .5, y = a[1] + 5.5 + (+pm[1] - 1) * 1.3; const xs = { L: [x0, 5.5], CO: [x0 + 10.1, 4.4], CE: [x0 + 14.5, 4.4], E: [x0 + 23.5, 5.5] }[pm[2]]; return { x: xs[0], y, w: xs[1], h: 1.3 }; }
+    if (id === 'REBA-02') { const a = AREAS.c5; return { x: a[0], y: a[1], w: a[2], h: a[3] }; }
     return null;
   }
   function highlightMove(o, d) {
@@ -368,6 +433,7 @@
     const pos = t.getAttribute && t.getAttribute('data-pos');
     if (pos) return showDetail(pos);
     const a = t.getAttribute && t.getAttribute('data-aisle'); if (a) return zoomAisle(a);
+    if (t.closest && t.closest('[data-c5]')) return showC5();
     const st = t.closest && t.closest('[data-stage]'); if (st) { S.stageTab = st.getAttribute('data-stage'); renderStage(); drawStage(); $('nav').querySelector('[data-panel="stage"]').click(); $('stabs').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
   });
   svg.addEventListener('pointerleave', () => { $('tip').style.display = 'none'; });
@@ -378,7 +444,14 @@
   $('zall').onclick = () => fit(VIEW_ALL);
 
   function tip(e) {
-    const T = $('tip'), pos = e.target.getAttribute && e.target.getAttribute('data-pos');
+    const T = $('tip'), pi = e.target.getAttribute && e.target.getAttribute('data-c5p');
+    if (pi !== null && pi !== '' && pi !== undefined && S.c5) {
+      const p = S.c5.perchas[+pi];
+      T.innerHTML = `<div class="t">C5 · ${esc(p.id)}</div>${p.sku ? esc(p.desc) + `<br><b>${p.pallets} / ${p.cap} pallets</b>` + (p.existente ? ` <span class="note">(${p.existente} ya en REBA-02)</span>` : '') + (p.vus.length ? `<br><span class="note">Vida útil ${Math.min(...p.vus)}–${Math.max(...p.vus)} días</span>` : '') : '<span class="ok">Percha libre</span>'}`;
+      const r = $('mapwrap').getBoundingClientRect(); T.style.display = 'block';
+      T.style.left = Math.min(r.width - 310, e.clientX - r.left + 14) + 'px'; T.style.top = Math.min(r.height - 120, e.clientY - r.top + 14) + 'px'; return;
+    }
+    const pos = e.target.getAttribute && e.target.getAttribute('data-pos');
     if (!pos) { T.style.display = 'none'; return; }
     const P = S.cells.get(pos).P;
     let body;
@@ -418,9 +491,9 @@
     $(prefix + 'tabs').onclick = e => { const b = e.target.closest('button'); if (b) { S[tabKey] = b.dataset.t; render(); } };
     $(prefix + 'body').addEventListener('mouseover', e => { const tr = e.target.closest('tr'); const x = tr && (S[rowsKey] || [])[+tr.dataset.i]; if (x) highlightMove(x.origen, x.destino); });
     $(prefix + 'body').addEventListener('click', e => { const tr = e.target.closest('tr'); const x = tr && (S[rowsKey] || [])[+tr.dataset.i]; if (x) fitMove(x.origen, x.destino); });
-    const msg = $(prefix === 'p19' ? 'p19msg' : 'fillmsg');
+    const msg = $(prefix + 'msg');
     $(prefix + 'adc').onclick = () => { const L = S[rowsKey] || []; if (!L.length) { msg.textContent = 'No hay movimientos en esta vista.'; return; } saveADC(movesADC(L, tipoCambio), 'ADC_' + fileTag + '_' + S[tabKey] + '_' + today() + '.csv', msg); };
-    $(prefix === 'p19' ? 'p19copy' : 'fillcopy').onclick = () => saveADC(movesADC(S[rowsKey] || [], tipoCambio), '', msg, true);
+    $(prefix + 'copy').onclick = () => saveADC(movesADC(S[rowsKey] || [], tipoCambio), '', msg, true);
   }
   const FIRMA = 'Elías Cortés · Planificador y Control Bodega';
   function pickADC() {
@@ -467,21 +540,24 @@
   $('zt').onchange = e => { S.zt = e.target.value; paint(); };
   wireMoves('p19', 'p19tab', 'p19rows', () => renderP19(), 'Movimiento no dirigido · consolidación pasillo 19', 'P19');
   wireMoves('fill', 'filltab', 'fillrows', () => renderFill(), 'Movimiento no dirigido · llenado de surtido', 'llenado');
+  wireMoves('c5', 'c5tab', 'c5rows', () => renderC5(), 'Movimiento no dirigido · traslado a carpa C5 (REBA-02)', 'C5');
+  let c5t; $('c5ven').addEventListener('input', () => { clearTimeout(c5t); c5t = setTimeout(() => { if (S.model) renderC5(); }, 250); });
   let pt; ['p19cap', 'p19ven', 'p19lib', 'p19min'].forEach(id => $(id).addEventListener('input', () => { clearTimeout(pt); pt = setTimeout(() => { if (S.model) renderP19(); }, 250); }));
   $('nav').onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
     S.panel = b.dataset.panel;
     [...$('nav').children].forEach(x => x.setAttribute('aria-pressed', x === b));
     document.querySelectorAll('aside section[data-panel]').forEach(sec => { sec.hidden = sec.dataset.panel !== S.panel; });
-    highlight(null);
+    highlight(null); drawC5();
+    if (S.panel === 'c5') fit([AREAS.c5[0] - 4, AREAS.c5[1] - 4, AREAS.c5[2] + 8, AREAS.c5[3] + 8]);
   };
 
   // ---------- Carga de datos ----------
   function ingest(name, text, user) {
     const p = M.parseCSV(text), kind = M.detectKind(p.headers);
     if (!kind) { if (user) $('msg').textContent = `"${name}" no se reconoce: se esperaba cuadratura, vida útil o la hoja de preferencias / zonas.`; return false; }
-    if (kind === 'preferencia' || kind === 'zonas' || kind === 'capacidades') {
-      S.ref[kind] = { name, n: p.rows.length, data: kind === 'preferencia' ? M.parsePrefs(p.rows) : kind === 'zonas' ? M.parseZonas(p.rows) : M.parseCaps(p.rows) };
+    if (kind === 'preferencia' || kind === 'zonas' || kind === 'capacidades' || kind === 'bbdd') {
+      S.ref[kind] = { name, n: p.rows.length, data: kind === 'preferencia' ? M.parsePrefs(p.rows) : kind === 'zonas' ? M.parseZonas(p.rows) : kind === 'bbdd' ? M.parseBBDD(p.rows) : M.parseCaps(p.rows) };
       $('msg').textContent = ''; return true;
     }
     S.files[kind] = { name, recs: M.normalize(p.rows, kind), n: p.rows.length };
@@ -500,7 +576,7 @@
     drawCells(); renderPanels(); renderSrc();
   }
   function renderSrc() {
-    const lab = { vidautil: 'Vida útil', cuadratura: 'Cuadratura', preferencia: 'Preferencias', zonas: 'Zonas', capacidades: 'Capacidades' };
+    const lab = { vidautil: 'Vida útil', cuadratura: 'Cuadratura', preferencia: 'Preferencias', zonas: 'Zonas', capacidades: 'Capacidades', bbdd: 'BBDD' };
     $('src').innerHTML = Object.keys(S.files).map(k => `<button class="chip ${k === S.main ? 'on' : ''}" data-k="${k}" title="${esc(S.files[k].name)}">${k === S.main ? '● ' : ''}${lab[k]} · ${fmt(S.files[k].n)} filas</button>`).join('')
       + Object.keys(S.ref).map(k => `<span class="chip" title="${esc(S.ref[k].name)}">${lab[k]} · ${fmt(S.ref[k].n)}</span>`).join('');
   }
@@ -535,7 +611,7 @@
   async function boot() {
     loadColors(); drawBase(); fit(VIEW_BOD);
     window.addEventListener('resize', () => fit(S.vb));
-    const demo = [['data/preferencias.csv', 'Preferencias (Datos para armar 19-11)'], ['data/zonas.csv', 'Zonas ZM (Datos para armar 19-11)'], ['data/capacidades.csv', 'Capacidades UBICACIONES (Datos para armar 19-11)'], ['data/vidautil.csv', 'Vida útil 19-11 (demo)'], ['data/cuadratura.csv', 'Cuadratura 12-11 (demo)']];
+    const demo = [['data/preferencias.csv', 'Preferencias (Datos para armar 19-11)'], ['data/zonas.csv', 'Zonas ZM (Datos para armar 19-11)'], ['data/capacidades.csv', 'Capacidades UBICACIONES (Datos para armar 19-11)'], ['data/bbdd.csv', 'BBDD Noviembre 2026'], ['data/vidautil.csv', 'Vida útil 19-11 (demo)'], ['data/cuadratura.csv', 'Cuadratura 12-11 (demo)']];
     for (const [u, n] of demo) { try { const r = await fetch(u); if (r.ok) ingest(n, await r.text()); } catch (e) { /* sin demo */ } }
     if (S.main) rebuild(); else $('msg').textContent = 'Arrastra aquí la cuadratura de stock o las operaciones de vida útil exportadas del WMS.';
   }

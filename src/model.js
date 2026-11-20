@@ -12,6 +12,8 @@
     16: [40, 3], 17: [1, 1], 18: [56, 3], 19: [44, 1]
   };
   const CAP_P19 = 14;
+  // Carpa C5 (REBA-02): 30 filas × (percha lateral 14 + 2 centrales 11 + lateral 14) = 120 perchas, ~1.500 pallets
+  const C5 = { id: 'REBA-02', filas: 30, lateral: 14, central: 11, capacidad: 1500 };
   // Perchas de picking (un solo nivel, varios pallets): pasillo → [módulo desde, hasta, pallets]
   const PERCHA_PICK = { 10: [1, 18, 6], 11: [21, 38, 10] };
   const perchaCap = (p, m) => { const c = PERCHA_PICK[p]; return c && m >= c[0] && m <= c[1] ? c[2] : 0; };
@@ -50,6 +52,7 @@
     if (h.includes('numero de articulo') && h.some(x => x.startsWith('posicion picking nivel 1'))) return 'preferencia';
     if (h.includes('ubicacion') && h.includes('zona de trabajo')) return 'zonas';
     if (h.includes('nombre ubicacion') && h.includes('capacidad maxima')) return 'capacidades';
+    if (h.includes('numero de material') && h.includes('centro')) return 'bbdd';
     if (!h.includes('ubicacion') || !h.includes('articulo')) return null;
     if (h.includes('vida util')) return 'vidautil';
     if (h.includes('cantidad')) return 'cuadratura';
@@ -140,8 +143,9 @@
     for (const k in LAYOUT) dims[k] = LAYOUT[k].slice();
     const inRack = [], stageRecs = {};
     STAGE_IDS.forEach(id => { stageRecs[id] = []; });
-    let otros = 0;
+    let otros = 0; const c5recs = [];
     for (const r of recs) {
+      if (r.ubic === C5.id) { c5recs.push(r); continue; }
       const u = parseUbic(r.ubic);
       if (u) {
         r._u = u; inRack.push(r);
@@ -214,6 +218,7 @@
     const bloqueadas = all.filter(x => x.block).length, asignadas = all.filter(x => x.status === 'asignada').length;
     const capReal = all.length - bloqueadas;
     return {
+      c5: { id: C5.id, items: c5recs, pallets: countPallets(c5recs), skus: new Set(c5recs.map(i => i.sku)).size, capacidad: C5.capacidad },
       positions, aisles, stage, prefs, hasPrefs: prefs.length > 0, recs, caps: opts.caps || null,
       kpi: {
         total: all.length, ocupadas, libres: all.filter(esLibre).length, pctOcc: capReal ? ocupadas / capReal : 0,
@@ -434,6 +439,79 @@
     return { moves, liberadas };
   }
 
+  // ---------- BBDD de materiales (centro: 2306 cerveza, 5006 vino, 7106 pisco, 8006 aguas, 9006 gaseosas) ----------
+  function parseBBDD(rows) {
+    const b = new Map();
+    for (const r of rows) {
+      const k = gk(r, 'numero de material'); if (!k || b.has(k)) continue;
+      b.set(k, { desc: gk(r, 'texto breve'), centro: gk(r, 'centro'), grupo: gk(r, 'grupo de articulos'), cajasPallet: num(gk(r, 'cajas por pallet')) || null });
+    }
+    return b;
+  }
+
+  // ---------- Carpa C5 (REBA-02): solo aguas y gaseosas ----------
+  function unitsFromItems(items, pos) {
+    const by = new Map(), out = [];
+    for (const it of items) {
+      if (it.lpn) { if (!by.has(it.lpn)) { by.set(it.lpn, { lpn: it.lpn, sku: it.sku, desc: it.desc, qty: 0, vu: it.vu, pos }); out.push(by.get(it.lpn)); } by.get(it.lpn).qty += it.qty; }
+      else { const n = Math.max(1, Math.round(it.lpnCount)); for (let k = 0; k < n; k++) out.push({ lpn: '—', sku: it.sku, desc: it.desc, qty: Math.round(it.qty / n), vu: it.vu, pos }); }
+    }
+    return out;
+  }
+  function c5Perchas() {
+    const out = [];
+    for (let f = 1; f <= C5.filas; f++) for (const [lado, cap] of [['L', C5.lateral], ['CO', C5.central], ['CE', C5.central], ['E', C5.lateral]])
+      out.push({ id: 'F' + pad(f) + '-' + lado, fila: f, lado, cap, sku: null, desc: '', pallets: 0, vus: [], existente: 0 });
+    return out;
+  }
+  function moveToC5(model, bbdd, params) {
+    const o = Object.assign({ centros: ['8006', '9006'], ventana: 30, capacidad: C5.capacidad }, params || {});
+    const perchas = c5Perchas();
+    let total = 0;
+    const place = (u, existente) => {
+      if (total >= o.capacidad) return null;
+      const fits = p => p.sku === u.sku && p.pallets < p.cap && (u.vu === null || !p.vus.length || spread(p.vus.concat(u.vu)) <= o.ventana);
+      const p = perchas.find(fits) || perchas.find(q => !q.sku);
+      if (!p) return null;
+      if (!p.sku) { p.sku = u.sku; p.desc = u.desc; }
+      p.pallets++; if (u.vu !== null) p.vus.push(u.vu); if (existente) p.existente++; total++;
+      return p;
+    };
+    // lo que ya está en REBA-02 ocupa perchas primero
+    const exist = unitsFromItems(model.c5.items, C5.id);
+    const bySkuE = {}; exist.forEach(u => (bySkuE[u.sku] = bySkuE[u.sku] || []).push(u));
+    for (const k in bySkuE) bySkuE[k].sort((a, b) => (a.vu ?? 1e9) - (b.vu ?? 1e9)).forEach(u => place(u, true));
+    // orígenes: STREC*, racks N2–N3 (pasillos 1–16 y 18) y pasillo 19
+    const ok = sku => { const b = bbdd && bbdd.get(sku); return !!b && o.centros.includes(String(b.centro)); };
+    const units = [], posTotal = {};
+    for (const s of model.stage) if (/^STREC/.test(s.id)) units.push(...unitsFromItems(s.items, s.id).map(u => Object.assign(u, { origenTipo: 'stage' })));
+    for (const P of model.positions.values()) {
+      if (!P.items.length || P.p === 17 || (P.p !== 19 && P.n < 2)) continue;
+      const us = unitsFromItems(P.items, P.pos); posTotal[P.pos] = us.length;
+      units.push(...us.map(u => Object.assign(u, { origenTipo: P.p === 19 ? 'p19' : 'rack' })));
+    }
+    const cand = units.filter(u => ok(u.sku));
+    const bySku = {}; cand.forEach(u => (bySku[u.sku] = bySku[u.sku] || []).push(u));
+    const skus = Object.keys(bySku).sort((a, b) => bySku[b].length - bySku[a].length);
+    const moves = [], moved = {}; let sinEspacio = 0;
+    for (const k of skus) {
+      for (const u of bySku[k].sort((a, b) => (a.vu ?? 1e9) - (b.vu ?? 1e9))) {
+        const p = place(u, false);
+        if (!p) { sinEspacio++; continue; }
+        moved[u.pos] = (moved[u.pos] || 0) + 1;
+        const b = bbdd.get(u.sku);
+        moves.push({ lpn: u.lpn, sku: u.sku, desc: u.desc, qty: u.qty, vu: u.vu, origen: u.pos, origenTipo: u.origenTipo, destino: C5.id, percha: p.id, centro: b.centro,
+          motivo: (b.centro === '8006' ? 'Agua' : 'Gaseosa') + ' → C5 percha ' + p.id });
+      }
+    }
+    let liberadas = 0;
+    for (const pos in moved) { const P = model.positions.get(pos); if (P && P.p !== 19 && moved[pos] >= posTotal[pos]) liberadas++; }
+    perchas.forEach(p => { p.spread = spread(p.vus); });
+    return { moves, perchas, liberadas, sinEspacio, stageLpn: moves.filter(m => m.origenTipo === 'stage').length,
+      p19Pallets: moves.filter(m => m.origenTipo === 'p19').length, ocupacionFinal: total, capacidad: o.capacidad,
+      sinClasificar: units.filter(u => !(bbdd && bbdd.has(u.sku))).length };
+  }
+
   // Informe de picking bloqueado / mal asignado.
   function pickingReport(model) {
     const desc = {}, out = [];
@@ -466,5 +544,5 @@
     return { side: 'R', i: m - k - 3, k };
   }
 
-  return { PERCHA_PICK, perchaCap, modulePlace, consolidateP19, fillPicking, parseCaps, pickingReport, parsePrefs, parseZonas, LAYOUT, CAP_P19, STAGE_IDS, parseCSV, detectKind, parseUbic, parseFecha, normalize, buildModel, suggestStage, suggestAll, countPallets };
+  return { parseBBDD, moveToC5, C5, PERCHA_PICK, perchaCap, modulePlace, consolidateP19, fillPicking, parseCaps, pickingReport, parsePrefs, parseZonas, LAYOUT, CAP_P19, STAGE_IDS, parseCSV, detectKind, parseUbic, parseFecha, normalize, buildModel, suggestStage, suggestAll, countPallets };
 });

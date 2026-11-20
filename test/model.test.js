@@ -149,3 +149,14 @@ test('perchas de picking: P10 1–18 (6 pallets) y P11 21–38 (10) tienen un so
   assert.strictEqual(m.positions.get('11-30-01').percha, 10);
   assert.strictEqual(m.kpi.porPasillo.find(x => x.p === 10).total, 38 + 20 * 2);
 });
+
+test('carpa C5 (REBA-02): cuenta pallets aparte, fuera de stage y de racks', () => {
+  const H = 'Almacen,Area,Ubicacion,LPN,Articulo,Descripcion,Cantidad,Estado de inventario,Vida util,Vida util pond,Fecha de fabricacion,Fecha de caducidad\n';
+  const vu = H + 'C,PATCA,REBA-02,L1,A,PEPSI,80,D,90,x,,\nC,PATCA,REBA-02,L2,B,AGUA,80,D,90,x,,\nC,PATCA,REBA-02,L2,B,AGUA,10,D,90,x,,\n';
+  const m = M.buildModel(M.normalize(M.parseCSV(vu).rows, 'vidautil'));
+  assert.strictEqual(m.c5.pallets, 2);
+  assert.strictEqual(m.c5.capacidad, 1500);
+  assert.strictEqual(m.c5.skus, 2);
+  assert.strictEqual(m.kpi.otrasFilas, 0);
+  assert.ok(!m.stage.some(s => s.id === 'REBA-02'));
+});

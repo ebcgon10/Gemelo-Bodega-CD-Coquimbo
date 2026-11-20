@@ -70,3 +70,13 @@ Elegido A por el usuario ("la mejor, interactiva y que se vea bien").
 - Orígenes: ALMAC, ALMPIC, MIX-01, REBA-01, STREC*. Orden FEFO; a igual fecha, restos primero.
 - Un LPN se mueve completo solo si cabe (así libera su posición); si se salta un LPN que vence antes, se marca aviso FEFO.
 - Indicador: posiciones liberadas; movimientos con ADC.
+
+---
+## Ajustes 19–20 nov (layout y carpa C5)
+- Pasillos 1–16 en U: módulos 1–18 suben por la cara poniente desde el sur, 19–20 cabecera norte, 21–38 bajan por la cara oriente (pasillos de 40/42 módulos: 19/20 por cara).
+- Pasillo 19 en U: 19-01 al sur subiendo a 19-22, 19-23 al norte bajando a 19-44.
+- Perchas de picking de un solo nivel: pasillo 10 módulos 1–18 (6 pallets) y pasillo 11 módulos 21–38 (10 pallets); llenado = cajas / capacidad de la hoja UBICACIONES.
+- Doble altura configurada en preferencias: 13-21 a 13-26 y 09-10, 09-11 (nivel 2 bloqueado).
+- Carpa C5 = ubicación WMS REBA-02, solo aguas (centro 8006) y gaseosas (9006) según BBDD de materiales.
+  Layout 30 × 45 m: maniobra 5 m al frente, 5 + 8 + 5 corridas, 30 filas de 1,30 m → 120 perchas (60 laterales de 14 pallets, 60 centrales de 11) ≈ 1.500 pallets.
+- Pestaña Carpa C5: mueve aguas y gaseosas desde STREC*, racks N2–N3 y P19 (no surtido, no REBA-01); un código por percha, ventana ≤ 30 días, códigos con más pallets primero; ADC por movimiento.
