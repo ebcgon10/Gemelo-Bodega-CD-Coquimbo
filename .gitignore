@@ -1,0 +1,6 @@
+# Datos del WMS: no se suben (repositorio público)
+src/data/*.csv
+*.xlsx
+.superpowers/
+node_modules/
+__pycache__/

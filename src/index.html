@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemelo Bodega CD Coquimbo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* Plan: un solo mundo visual oscuro tipo plano Revit. Plano a la izquierda, panel de control a la derecha. */
+:root {
+  --bg: #0d1218;
+  --panel: #151c25;
+  --panel-2: #1c2531;
+  --line: #2a3644;
+  --ink: #e7ecf1;
+  --muted: #8b98a7;
+  --accent: #f2b632;      /* amarillo rack Revit */
+  --free: #36d399;        /* posición libre */
+  --occ: #4a6584;         /* ocupada */
+  --occ-2: #6b86a6;       /* almacenamiento */
+  --alt: #8b63b5;        /* bloqueada por altura */
+  --ext: #a8793c;        /* 2º espacio de picking */
+  --asig: #2f7896;       /* preferencia sin stock */
+  --crit: #ef5350; --warn: #ff9f43; --watch: #ffd54f;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--body); display: flex; flex-direction: column; overflow: hidden; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.brand h1 { font: 700 24px/1 var(--display); letter-spacing: .02em; margin: 0; text-transform: uppercase; }
+.brand h1 b { color: var(--accent); font-weight: 700; }
+.brand span { color: var(--muted); font-size: 12px; }
+.src { font-size: 12px; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+.src .chip { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; }
+.src .chip.on { border-color: var(--accent); color: var(--ink); }
+.btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: #1a1406; border-color: var(--accent); font-weight: 600; }
+
+main { flex: 1; display: grid; grid-template-columns: 1fr 400px; min-height: 0; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; grid-template-rows: 55% 45%; } }
+
+#mapwrap { position: relative; min-height: 0; overflow: hidden; background:
+  radial-gradient(circle at 1px 1px, #1a2330 1px, transparent 0) 0 0/22px 22px, var(--bg); }
+#map { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; }
+#map.drag { cursor: grabbing; }
+.toolbar { position: absolute; top: 12px; left: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { background: none; border: 0; padding: 6px 10px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--panel-2); color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+.search { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; width: 220px; }
+.zoom { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
+.zoom button { width: 34px; height: 34px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; font-size: 16px; }
+.legend { position: absolute; left: 12px; bottom: 12px; background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); max-width: calc(100% - 80px); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -2px; margin-right: 5px; }
+#tip { position: absolute; pointer-events: none; background: #0a0f14f2; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; max-width: 300px; display: none; z-index: 5; }
+#tip .t { font: 600 15px var(--mono); color: var(--accent); }
+#drop { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: #0d1218e6; border: 3px dashed var(--accent); font: 600 26px var(--display); text-transform: uppercase; z-index: 9; }
+body.dragging #drop { display: flex; }
+
+aside { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 18px; min-height: 0; }
+h2 { font: 600 15px/1 var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 8px; }
+.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.kpi { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.kpi .v { font: 700 30px/1 var(--display); font-variant-numeric: tabular-nums; }
+.kpi .l { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.kpi.free { border-left: 3px solid var(--free); } .kpi.free .v { color: var(--free); }
+.kpi.crit { border-left: 3px solid var(--crit); }
+.kpi.stage { border-left: 3px solid var(--accent); }
+.meter { height: 6px; background: #0d1218; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.meter { display: flex; } .meter span { display: block; height: 100%; background: var(--occ-2); }
+.rank { display: flex; flex-direction: column; gap: 4px; }
+.rank button { display: grid; grid-template-columns: 34px 1fr 64px; gap: 8px; align-items: center; background: none; border: 0; padding: 3px 4px; border-radius: 4px; text-align: left; }
+.rank button:hover { background: var(--panel-2); }
+.rank .n { font: 600 14px var(--mono); color: var(--accent); }
+.rank .bar { height: 10px; background: #0d1218; border-radius: 2px; overflow: hidden; display: flex; }
+.rank .bar .o { background: var(--occ); } .rank .bar .f { background: var(--free); }
+.rank .c { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.levels div { background: var(--panel-2); border-radius: 6px; padding: 8px; text-align: center; }
+.levels b { display: block; font: 700 22px var(--display); color: var(--free); }
+.levels small { color: var(--muted); font-size: 11px; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.tabs button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 4px 8px; font-size: 12px; }
+.tabs button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.tabs button em { font-style: normal; color: var(--muted); margin-left: 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); padding: 4px; position: sticky; top: 0; background: var(--panel); }
+td { padding: 5px 4px; border-bottom: 1px solid #202a36; vertical-align: top; }
+td.mono, .mono { font-family: var(--mono); font-size: 12px; }
+tr.sug:hover { background: var(--panel-2); cursor: pointer; }
+.tablebox { max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+.vu { display: inline-block; min-width: 34px; text-align: center; border-radius: 3px; padding: 0 4px; font-family: var(--mono); font-size: 11px; color: #111; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.note { font-size: 12px; color: var(--muted); }
+.ok { color: var(--free); }
+.nav { display: flex; gap: 4px; flex-wrap: wrap; position: sticky; top: -14px; z-index: 3; background: var(--panel); padding: 6px 0 8px; margin-top: -6px; border-bottom: 1px solid var(--line); }
+.nav button { background: none; border: 1px solid transparent; border-radius: 6px; padding: 5px 9px; color: var(--muted); font: 600 14px var(--display); letter-spacing: .04em; text-transform: uppercase; }
+.nav button[aria-pressed="true"] { color: var(--ink); border-color: var(--accent); background: var(--panel-2); }
+.params { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+.params label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.params input { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font-family: var(--mono); }
+.chip-t { display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; padding: 1px 6px; border-radius: 3px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
+.warnrow { box-shadow: inset 3px 0 0 var(--warn); }
+section[hidden] { display: none !important; }
+#detail { background: var(--panel-2); border: 1px solid var(--accent); border-radius: 8px; padding: 12px; display: none; }
+#detail.on { display: block; }
+#detail .x { float: right; background: none; border: 0; color: var(--muted); font-size: 18px; line-height: 1; }
+#msg { font-size: 12px; color: var(--warn); }
+@media (prefers-reduced-motion: no-preference) { .cell { transition: opacity .15s; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><h1>Gemelo <b>Bodega</b> · CD Coquimbo</h1><span>Ocupación real de posiciones desde el WMS</span></div>
+  <div class="src" id="src"></div>
+  <label class="btn primary" for="file">Cargar archivos del WMS</label>
+  <input type="file" id="file" accept=".csv,.xlsx,.xls,text/csv" multiple hidden>
+</header>
+<main>
+  <section id="mapwrap" aria-label="Plano de la bodega">
+    <svg id="map" role="img" aria-label="Plano interactivo de posiciones"></svg>
+    <div class="toolbar">
+      <div class="seg" id="mode" role="group" aria-label="Color">
+        <button data-v="occ" aria-pressed="true">Ocupación</button>
+        <button data-v="vu" aria-pressed="false">Vida útil</button>
+      </div>
+      <div class="seg" id="lvl" role="group" aria-label="Nivel">
+        <button data-v="0" aria-pressed="true">Todos</button>
+        <button data-v="1" aria-pressed="false">N1 surtido</button>
+        <button data-v="2" aria-pressed="false">N2</button>
+        <button data-v="3" aria-pressed="false">N3</button>
+      </div>
+      <select class="search" id="zt" aria-label="Zona de trabajo" style="width:auto;display:none"></select>
+      <input class="search" id="q" type="search" placeholder="Buscar SKU o descripción" aria-label="Buscar SKU">
+      <span class="note" id="qres"></span>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="zoom">
+      <button id="zin" aria-label="Acercar">+</button>
+      <button id="zout" aria-label="Alejar">−</button>
+      <button id="zbod" aria-label="Ver bodega" title="Ver bodega">▭</button>
+      <button id="zall" aria-label="Ver todo el recinto" title="Ver todo">⤢</button>
+    </div>
+    <div id="tip"></div>
+    <div id="drop">Suelta aquí la cuadratura o la vida útil</div>
+  </section>
+  <aside>
+    <nav class="nav" id="nav" aria-label="Secciones">
+      <button data-panel="resumen" aria-pressed="true">Resumen</button>
+      <button data-panel="stage" aria-pressed="false">Stage C1</button>
+      <button data-panel="bloq" aria-pressed="false">Picking bloqueado</button>
+      <button data-panel="p19" aria-pressed="false">Consolidar P19</button>
+      <button data-panel="fill" aria-pressed="false">Llenado picking</button>
+    </nav>
+    <div id="detail"></div>
+    <div id="msg"></div>
+    <section data-panel="resumen">
+      <h2>Resumen</h2>
+      <div class="kpis" id="kpis"></div>
+      <h2 style="margin-top:18px">Libres por nivel</h2>
+      <div class="levels" id="levels"></div>
+      <h2 style="margin-top:18px">Pasillos con más espacio</h2>
+      <div class="rank" id="rank"></div>
+    </section>
+    <section data-panel="stage" hidden>
+      <h2>Stage C1 · por guardar</h2>
+      <div class="tabs" id="stabs"></div>
+      <div class="note" id="snote"></div>
+      <div class="tablebox"><table><thead><tr><th>LPN / SKU</th><th>Días</th><th>Destino sugerido</th></tr></thead><tbody id="sbody"></tbody></table></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="adc">Descargar ADC (CSV)</button>
+        <button class="btn" id="adccopy">Copiar ADC</button>
+        <span class="note" id="adcmsg"></span>
+      </div>
+    </section>
+    <section data-panel="bloq" hidden>
+      <h2>Picking bloqueado</h2>
+      <div class="tabs" id="ptabs"></div>
+      <div class="note" id="pnote"></div>
+      <div class="tablebox"><table><thead><tr><th>Posición / SKU</th><th>Detalle y acción sugerida</th></tr></thead><tbody id="pbody"></tbody></table></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="padc">Descargar ADC (CSV)</button>
+        <button class="btn" id="padccopy">Copiar ADC</button>
+        <span class="note" id="padcmsg"></span>
+      </div>
+    </section>
+    <section data-panel="p19" hidden>
+      <h2>Consolidar pasillo 19</h2>
+      <p class="note">Movimientos no dirigidos desde el almacenamiento de picking (N2–N3) a las perchas de Bodega 1. Percha de un solo código, con fechas dentro de la ventana; el gruero deja adelante lo más próximo a vencer.</p>
+      <div class="params">
+        <label>Máx. pallets por percha<input type="number" id="p19cap" value="14" min="1" max="30"></label>
+        <label>Ventana de fechas (días)<input type="number" id="p19ven" value="30" min="0" max="365"></label>
+        <label>Percha "con pocos pallets" ≤<input type="number" id="p19lib" value="3" min="0" max="13"></label>
+        <label>Pallets mínimos para merecer percha<input type="number" id="p19min" value="6" min="1" max="30"></label>
+      </div>
+      <div class="kpis" id="p19kpi"></div>
+      <div class="tabs" id="p19tabs"></div>
+      <div class="tablebox"><table><thead><tr><th>LPN / SKU</th><th>Días</th><th>Origen → destino</th></tr></thead><tbody id="p19body"></tbody></table></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="p19adc">Descargar ADC (CSV)</button>
+        <button class="btn" id="p19copy">Copiar ADC</button>
+        <span class="note" id="p19msg"></span>
+      </div>
+    </section>
+    <section data-panel="fill" hidden>
+      <h2>Llenado de ubicaciones de picking</h2>
+      <p class="note">Llena cada ubicación de surtido hasta su capacidad máxima con LPN completos que quepan, por FEFO y con los restos primero, para liberar posiciones. Orígenes: ALMAC, ALMPIC, MIX-01, REBA-01 y STREC.</p>
+      <div class="kpis" id="fillkpi"></div>
+      <div class="tabs" id="filltabs"></div>
+      <div class="tablebox"><table><thead><tr><th>LPN / SKU</th><th>Días</th><th>Origen → destino</th></tr></thead><tbody id="fillbody"></tbody></table></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="filladc">Descargar ADC (CSV)</button>
+        <button class="btn" id="fillcopy">Copiar ADC</button>
+        <span class="note" id="fillmsg"></span>
+      </div>
+    </section>
+  </aside>
+</main>
+<script src="model.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
