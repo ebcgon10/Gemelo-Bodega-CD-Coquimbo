@@ -464,13 +464,18 @@
       out.push({ id: 'F' + pad(f) + '-' + lado, fila: f, lado, cap, sku: null, desc: '', pallets: 0, vus: [], existente: 0 });
     return out;
   }
-  function moveToC5(model, bbdd, params) {
+  // Plan fijado: qué código va en cada percha (para que el orden no cambie al cargar nuevos archivos)
+  function planC5(res) { return res.perchas.filter(p => p.sku).map(p => ({ id: p.id, sku: p.sku, desc: p.desc })); }
+
+  function moveToC5(model, bbdd, params, plan) {
     const o = Object.assign({ centros: ['8006', '9006'], ventana: 30, capacidad: C5.capacidad }, params || {});
     const perchas = c5Perchas();
+    const planOrder = {};
+    if (plan && plan.length) plan.forEach((q, i) => { const p = perchas.find(x => x.id === q.id); if (p) { p.sku = q.sku; p.desc = q.desc || ''; p.fija = true; if (!(q.sku in planOrder)) planOrder[q.sku] = i; } });
     let total = 0;
     const place = (u, existente) => {
       if (total >= o.capacidad) return null;
-      const fits = p => p.sku === u.sku && p.pallets < p.cap && (u.vu === null || !p.vus.length || spread(p.vus.concat(u.vu)) <= o.ventana);
+      const fits = p => p.sku === u.sku && p.pallets < p.cap && (existente || u.vu === null || !p.vus.length || spread(p.vus.concat(u.vu)) <= o.ventana);
       const p = perchas.find(fits) || perchas.find(q => !q.sku);
       if (!p) return null;
       if (!p.sku) { p.sku = u.sku; p.desc = u.desc; }
@@ -492,7 +497,7 @@
     }
     const cand = units.filter(u => ok(u.sku));
     const bySku = {}; cand.forEach(u => (bySku[u.sku] = bySku[u.sku] || []).push(u));
-    const skus = Object.keys(bySku).sort((a, b) => bySku[b].length - bySku[a].length);
+    const skus = Object.keys(bySku).sort((a, b) => ((planOrder[a] ?? 1e6) - (planOrder[b] ?? 1e6)) || (bySku[b].length - bySku[a].length));
     const moves = [], moved = {}; let sinEspacio = 0;
     for (const k of skus) {
       for (const u of bySku[k].sort((a, b) => (a.vu ?? 1e9) - (b.vu ?? 1e9))) {
@@ -507,7 +512,7 @@
     let liberadas = 0;
     for (const pos in moved) { const P = model.positions.get(pos); if (P && P.p !== 19 && moved[pos] >= posTotal[pos]) liberadas++; }
     perchas.forEach(p => { p.spread = spread(p.vus); });
-    return { moves, perchas, liberadas, sinEspacio, stageLpn: moves.filter(m => m.origenTipo === 'stage').length,
+    return { conPlan: !!(plan && plan.length), moves, perchas, liberadas, sinEspacio, stageLpn: moves.filter(m => m.origenTipo === 'stage').length,
       p19Pallets: moves.filter(m => m.origenTipo === 'p19').length, ocupacionFinal: total, capacidad: o.capacidad,
       sinClasificar: units.filter(u => !(bbdd && bbdd.has(u.sku))).length };
   }
@@ -590,5 +595,5 @@
     return { side: 'R', i: m - k - 3, k };
   }
 
-  return { hojaRuta, parseBBDD, moveToC5, C5, PERCHA_PICK, perchaCap, modulePlace, consolidateP19, fillPicking, parseCaps, pickingReport, parsePrefs, parseZonas, LAYOUT, CAP_P19, STAGE_IDS, parseCSV, detectKind, parseUbic, parseFecha, normalize, buildModel, suggestStage, suggestAll, countPallets };
+  return { planC5, hojaRuta, parseBBDD, moveToC5, C5, PERCHA_PICK, perchaCap, modulePlace, consolidateP19, fillPicking, parseCaps, pickingReport, parsePrefs, parseZonas, LAYOUT, CAP_P19, STAGE_IDS, parseCSV, detectKind, parseUbic, parseFecha, normalize, buildModel, suggestStage, suggestAll, countPallets };
 });

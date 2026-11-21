@@ -48,3 +48,25 @@ test('C5: respeta lo que ya hay en REBA-02 y avisa si no cabe', () => {
   assert.strictEqual(r.moves.length, 2);
   assert.strictEqual(r.sinEspacio, 2);
 });
+
+test('C5 con plan fijado: los pallets ya movidos cuentan y el resto mantiene sus perchas', () => {
+  let vu1 = '';
+  for (let i = 1; i <= 16; i++) vu1 += row('ALMPIC', `05-${String(i).padStart(2, '0')}-02-01`, 'G' + i, 'G1', 80, 50);
+  for (let i = 1; i <= 5; i++) vu1 += row('PATCA', 'STREC01', 'A' + i, 'A1', 100, 60);
+  const bb = M.parseBBDD(rows(BB));
+  const r1 = M.moveToC5(build(vu1), bb, {});
+  const plan = M.planC5(r1);
+  const percha1 = {}; r1.moves.forEach(m => { percha1[m.lpn] = m.percha; });
+  // ya se movieron G1..G10 y A1..A2 a REBA-02
+  let vu2 = '';
+  for (let i = 1; i <= 16; i++) vu2 += i <= 10 ? row('PATCA', 'REBA-02', 'G' + i, 'G1', 80, 50) : row('ALMPIC', `05-${String(i).padStart(2, '0')}-02-01`, 'G' + i, 'G1', 80, 50);
+  for (let i = 1; i <= 5; i++) vu2 += row('PATCA', i <= 2 ? 'REBA-02' : 'STREC01', 'A' + i, 'A1', 100, 60);
+  vu2 += row('PATCA', 'STREC02', 'N1', 'A1', 100, 61);   // llega otro pallet del mismo código
+  const r2 = M.moveToC5(build(vu2), bb, {}, plan);
+  assert.deepStrictEqual(r2.moves.filter(m => m.lpn !== 'N1').map(m => m.lpn + ':' + m.percha).sort(),
+    ['A3', 'A4', 'A5', 'G11', 'G12', 'G13', 'G14', 'G15', 'G16'].map(l => l + ':' + percha1[l]).sort());
+  assert.strictEqual(r2.ocupacionFinal, 22);
+  const pA = r2.perchas.filter(p => p.sku === 'A1');
+  assert.ok(pA.every(p => plan.some(q => q.id === p.id && q.sku === 'A1')));
+  assert.strictEqual(r2.perchas.find(p => p.id === percha1.G1).existente, 10);
+});

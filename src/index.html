@@ -113,6 +113,8 @@ tr.sug:hover { background: var(--panel-2); cursor: pointer; }
 .chip-t { display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; padding: 1px 6px; border-radius: 3px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); }
 .warnrow { box-shadow: inset 3px 0 0 var(--warn); }
 section[hidden] { display: none !important; }
+.planbox { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0 10px; font-size: 12px; }
+.planbox.on { border-color: #a970d6; }
 .btn.hr { border-color: #5BB030; color: #8fdc6a; }
 #hrmodal { position: fixed; inset: 0; background: #000a; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 20px; }
 #hrmodal[hidden] { display: none; }
@@ -240,6 +242,7 @@ section[hidden] { display: none !important; }
       <h2>Mover a carpa C5 · REBA-02</h2>
       <p class="note">Solo aguas (centro 8006) y gaseosas (9006) según la BBDD. Origen: STREC, almacenamiento N2–N3 de los racks y pasillo 19; el surtido no se toca. Cada percha de la carpa lleva un solo código (laterales 14, centrales 11) y primero entran los códigos con más pallets.</p>
       <div class="params"><label>Ventana de fechas por percha (días)<input type="number" id="c5ven" value="30" min="0" max="365"></label></div>
+      <div class="row planbox" id="c5plan"></div>
       <div class="kpis" id="c5kpi"></div>
       <div class="tabs" id="c5tabs"></div>
       <div class="tablebox"><table><thead><tr><th>LPN / SKU</th><th>Días</th><th>Origen → percha</th></tr></thead><tbody id="c5body"></tbody></table></div>

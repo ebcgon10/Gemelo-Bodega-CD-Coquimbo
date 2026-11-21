@@ -273,7 +273,8 @@
   function renderC5() {
     const m = S.model, bb = S.ref.bbdd && S.ref.bbdd.data;
     if (!bb) { S.c5 = null; S.c5rows = []; $('c5kpi').innerHTML = '<div class="note" style="grid-column:span 2">Carga la BBDD de materiales (con columna Centro) para saber qué códigos son aguas y gaseosas.</div>'; $('c5tabs').innerHTML = ''; $('c5body').innerHTML = ''; return; }
-    S.c5 = M.moveToC5(m, bb, { ventana: +$('c5ven').value });
+    S.c5 = M.moveToC5(m, bb, { ventana: +$('c5ven').value }, S.c5plan && S.c5plan.perchas);
+    renderPlanBox();
     const r = S.c5, usadas = r.perchas.filter(p => p.sku).length;
     $('c5kpi').innerHTML = `<div class="kpi" style="border-left:3px solid #a970d6"><div class="v">${fmt(r.moves.length)}</div><div class="l">pallets hacia C5 · carpa queda en ${fmt(r.ocupacionFinal)} de ${fmt(r.capacidad)} · ${usadas} de 120 perchas</div></div>
       <div class="kpi free"><div class="v">${fmt(r.liberadas)}</div><div class="l">posiciones de racks liberadas</div></div>
@@ -552,6 +553,39 @@
     if (S.panel === 'c5') fit([AREAS.c5[0] - 4, AREAS.c5[1] - 4, AREAS.c5[2] + 8, AREAS.c5[3] + 8]);
   };
 
+  // ---------- Plan fijo de la carpa C5 (se guarda en la página; respaldo: este navegador) ----------
+  let dbNs = null;
+  const PLAN_KEY = 'gemeloC5Plan';
+  function renderPlanBox() {
+    const B = $('c5plan'), p = S.c5plan;
+    if (p) {
+      const n = p.perchas.length;
+      B.className = 'row planbox on';
+      B.innerHTML = `<span><b style="color:#a970d6">Plan fijado</b> el ${esc(p.fecha)} · ${n} perchas con código. Los pallets ya movidos a REBA-02 se cuentan en su percha y el resto mantiene su destino.</span><button class="btn" id="c5unfix">Rehacer plan</button>`;
+      $('c5unfix').onclick = async () => { await savePlan(null); };
+    } else {
+      B.className = 'row planbox';
+      B.innerHTML = `<span>Plan sin fijar: se recalcula con cada archivo. Fíjalo antes de empezar a mover para que cada código mantenga su percha.</span><button class="btn primary" id="c5fix">Fijar este plan</button>`;
+      $('c5fix').onclick = async () => { if (!S.c5) return; await savePlan({ fecha: emision(), perchas: M.planC5(S.c5) }); };
+    }
+  }
+  async function savePlan(plan) {
+    S.c5plan = plan;
+    try { if (plan) localStorage.setItem(PLAN_KEY, JSON.stringify(plan)); else localStorage.removeItem(PLAN_KEY); } catch (e) { /* sin almacenamiento local */ }
+    if (dbNs) { try { plan ? await dbNs.doc('planes/c5').set(plan) : await dbNs.doc('planes/c5').delete(); } catch (e) { $('c5msg').textContent = 'El plan quedó solo en este navegador (no se pudo guardar en la página).'; } }
+    if (S.model) renderC5();
+  }
+  async function loadPlan() {
+    try { const raw = localStorage.getItem(PLAN_KEY); if (raw) S.c5plan = JSON.parse(raw); } catch (e) { /* nada */ }
+    if (window.claude && window.claude.use) {
+      try {
+        dbNs = await window.claude.use('db');
+        if (dbNs) { const snap = await dbNs.doc('planes/c5').get(); if (snap.exists) { const d = snap.data(); if (d && Array.isArray(d.perchas)) S.c5plan = { fecha: String(d.fecha || ''), perchas: d.perchas }; } }
+      } catch (e) { /* sin base de datos: queda el respaldo local */ }
+    }
+    if (S.model) renderC5();
+  }
+
   // ---------- Hoja de ruta para imprimir ----------
   const HR = {
     stage: { titulo: 'Guardado Stage C1 / Hoja de Ruta', agrupar: 'origen', rows: () => (S.sug || []).filter(x => x.destino), tag: () => S.stageTab },
@@ -643,6 +677,7 @@
   window.addEventListener('drop', e => { e.preventDefault(); dc = 0; document.body.classList.remove('dragging'); readFiles(e.dataTransfer.files); });
 
   async function boot() {
+    loadPlan();
     loadColors(); drawBase(); fit(VIEW_BOD);
     window.addEventListener('resize', () => fit(S.vb));
     const demo = [['data/preferencias.csv', 'Preferencias (Datos para armar 19-11)'], ['data/zonas.csv', 'Zonas ZM (Datos para armar 19-11)'], ['data/capacidades.csv', 'Capacidades UBICACIONES (Datos para armar 19-11)'], ['data/bbdd.csv', 'BBDD Noviembre 2026'], ['data/vidautil.csv', 'Vida útil 19-11 (demo)'], ['data/cuadratura.csv', 'Cuadratura 12-11 (demo)']];
