@@ -5,7 +5,7 @@ Plano interactivo de la bodega del CD Coquimbo que pinta cada posición con los 
 
 ## Qué hace
 - **Plano**: Bodega 1 (pasillo 19 en U, perchas de 14 pallets), Picking 1 y 2 (pasillos 1–16 en U: 1–18 una cara, 19–20 cabecera, 21–38 otra cara),
-  perchas de picking de un solo nivel en el pasillo 10 (módulos 1–18, 6 pallets) y 11 (21–38, 10 pallets), Bodega 2 (18), bodega chica (17),
+  perchas de picking de un solo nivel en el pasillo 10 (módulos 1–18, 6 pallets) y 11 (21–38, 10 pallets), Bodega 2 (18, dos filas enfrentadas: 1–28 y 29–56), bodega chica (17),
   stage C1 (REBA-01, STREC01–06) y carpa C5 (REBA-02, 120 perchas, ~1.500 pallets).
 - **Capacidad completa vs real**: descuenta niveles bloqueados por altura del pallet de picking y picking de doble espacio (hoja de preferencias).
 - **Stage C1**: destino sugerido para cada LPN por FEFO, en su pasillo o zona de trabajo.
