@@ -14,9 +14,21 @@
   const PERCHAS_P2 = [['P1 · 133', 73.6, 4.4], ['P2 · 200', 88.3, 4.9]];
   const AREAS = {
     bodega: [0, 0, 125.8, 33], c1: [18.2, 34.2, 19.5, 13.2], c2: [38.7, 34.2, 38.4, 13.2], c3: [78.3, 34.2, 38.8, 13.2],
-    c4: [107.5, 48.4, 9.6, 27.6], c5: [111.6, 96, 30, 45], b2: [-26.2, 35.7, 18.4, 71.3],
+    c4: [107.5, 48.4, 9.6, 27.6], c5: [111.6, 96, 30, 45], b2: [-26.2, 35.7, 18.4, 29], actesp: [-26.2, 65.7, 18.4, 41.3],
     ed5: [3.2, 105.8, 22.8, 13.7], sub: [-23.6, -9, 9.3, 18.7]
   };
+  // Bodega 18: [desde, hasta, u0, v0, u1, v1, sentido] en coordenadas del croquis (0–1, entrada a la izquierda)
+  const B18_TRAMOS = [
+    [1, 6, .04, .07, .12, .48, 'up'],      // muro de la entrada, tramo de arriba (sube desde la puerta)
+    [7, 13, .13, .03, .91, .07, 'right'],  // muro de arriba
+    [14, 26, .89, .08, .97, .97, 'down'],  // muro del fondo
+    [27, 33, .06, .955, .87, .99, 'left'], // muro de abajo
+    [34, 38, .02, .62, .09, .95, 'up'],    // muro de la entrada, tramo de abajo
+    [39, 43, .39, .13, .46, .46, 'down'],  // bloque central de arriba, cara entrada
+    [44, 47, .47, .13, .54, .46, 'up'],    // bloque central de arriba, cara fondo
+    [48, 52, .38, .62, .45, .94, 'down'],  // bloque central de abajo, cara entrada
+    [53, 56, .46, .62, .52, .94, 'up']     // bloque central de abajo, cara fondo
+  ];
   const VIEW_ALL = [-32, -14, 180, 158], VIEW_BOD = [-4, -5, 134, 57];
 
   function geo(p, m, mods) {
@@ -25,15 +37,16 @@
       const side = m <= 22 ? 0 : 1, i = (m - 1) % 22, h = YLEN / 22;
       return { x: side ? 7.6 : 2.0, y: side ? Y0 + i * h : Y0 + YLEN - (i + 1) * h, w: 3.6, h };
     }
-    if (p === 18) { // Bodega 2 (propuesta 21-11, ajustar con etiquetas): fila norte 1–11, centro arriba 12–27, centro abajo 28–45, fila sur 46–56
-      const b = AREAS.b2, d = 1.6, cx = b[0] + b[2] / 2;
-      const T = [[1, 11, 'H', b[1] + .6, b[0] + 3], [12, 27, 'V', b[1] + 5, cx - 1.2], [28, 45, 'V', b[1] + 38, cx - .6], [46, 56, 'Hr', b[1] + b[3] - .6 - d, b[0] + 3]];
-      for (const [a0, a1, kind, y0, x0] of T) {
+    if (p === 18) { // Bodega 2 según croquis 21-11 (numeración provisoria: ajustar rangos en B18_TRAMOS con las etiquetas)
+      const b = AREAS.b2;
+      for (const [a0, a1, u0, v0, u1, v1, dir] of B18_TRAMOS) {
         if (m < a0 || m > a1) continue;
-        const n = a1 - a0 + 1, i = m - a0;
-        if (kind === 'V') { const len = kind === 'V' && a0 === 12 ? 30 : 31, h = len / n; return { x: x0, y: y0 + i * h, w: d, h }; }
-        const len = b[2] - 6, w = len / n;
-        return { x: kind === 'H' ? x0 + i * w : x0 + len - (i + 1) * w, y: y0, w, h: d };
+        // croquis girado 180° para dejar la entrada mirando al patio (oriente)
+        const X0 = b[0] + (1 - u1) * b[2], X1 = b[0] + (1 - u0) * b[2], Y0 = b[1] + (1 - v1) * b[3], Y1 = b[1] + (1 - v0) * b[3];
+        const n = a1 - a0 + 1, i = m - a0, vertical = dir === 'up' || dir === 'down';
+        // 'up'/'down'/'right'/'left' son del croquis; al girar 180° se invierten
+        if (vertical) { const h = (Y1 - Y0) / n; return { x: X0, y: dir === 'up' ? Y0 + i * h : Y1 - (i + 1) * h, w: X1 - X0, h }; }
+        const w = (X1 - X0) / n; return { x: dir === 'right' ? X1 - (i + 1) * w : X0 + i * w, y: Y0, w, h: Y1 - Y0 };
       }
       return null;
     }
@@ -77,6 +90,8 @@
     // recinto y edificios de contexto
     rectA(AREAS.bodega, { fill: '#111922', stroke: '#c0392b', 'stroke-width': .25, 'stroke-dasharray': '1 .6' }, g);
     rectA(AREAS.b2, { fill: '#18212c', stroke: ln, 'stroke-width': .2 }, g);
+    rectA(AREAS.actesp, { fill: 'none', stroke: ln, 'stroke-width': .2, 'stroke-dasharray': '.8 .5' }, g);
+    label(AREAS.actesp[0] + AREAS.actesp[2] / 2, AREAS.actesp[1] + AREAS.actesp[3] / 2, 'ACTIVIDADES ESPECIALES', { 'font-size': 1.3 }, g);
     rectA(AREAS.ed5, { fill: '#2a1d16', stroke: '#5a3a28', 'stroke-width': .2 }, g);
     rectA(AREAS.sub, { fill: '#10302b', stroke: '#1f7a6b', 'stroke-width': .2 }, g);
     for (const k of ['c2', 'c3', 'c4']) rectA(AREAS[k], { fill: 'none', stroke: ln, 'stroke-width': .2, 'stroke-dasharray': '.8 .5' }, g);
@@ -94,6 +109,7 @@
       label(AISLE_X[p], -0.35, p, { fill: C['--accent'], 'font-size': 1.3, 'font-weight': 700, 'data-aisle': p, style: 'cursor:pointer' }, g);
     }
     label(AREAS.b2[0] + AREAS.b2[2] / 2, AREAS.b2[1] - 1, 'BODEGA 2 · P18', { fill: C['--ink'] }, g);
+    { const b = AREAS.b2, x = b[0] + b[2] + .4, y = b[1] + b[3] * .45; label(x, y, 'ENTRADA ◀', { fill: '#5aa0e0', 'font-size': 1.1, 'font-weight': 600, 'text-anchor': 'start' }, g); }
     label(AREAS.ed5[0] + 4, AREAS.ed5[1] - 1, 'P17 · bodega chica', { fill: C['--ink'] }, g);
     label(AREAS.sub[0] + AREAS.sub[2] / 2, AREAS.sub[1] + AREAS.sub[3] / 2, 'SUBESTÁNDAR', { 'font-size': 1.3 }, g);
     for (const k of ['c2', 'c3', 'c4']) { const a = AREAS[k]; label(a[0] + a[2] / 2, a[1] + a[3] / 2 + .6, k.toUpperCase() + ' · staging', { 'font-size': 1.6 }, g); }
