@@ -25,10 +25,17 @@
       const side = m <= 22 ? 0 : 1, i = (m - 1) % 22, h = YLEN / 22;
       return { x: side ? 7.6 : 2.0, y: side ? Y0 + i * h : Y0 + YLEN - (i + 1) * h, w: 3.6, h };
     }
-    if (p === 18) { // Bodega 2: dos filas enfrentadas (video 21-11): 1–28 sube por la fila poniente, 29–56 baja por la oriente
-      const b = AREAS.b2, k = Math.ceil(mods / 2), h = (b[3] - 4) / k, top = b[1] + 2;
-      if (m <= k) return { x: b[0] + 1.2, y: top + (k - m) * h, w: 1.6, h };
-      return { x: b[0] + b[2] - 2.8, y: top + (m - k - 1) * h, w: 1.6, h };
+    if (p === 18) { // Bodega 2 (propuesta 21-11, ajustar con etiquetas): fila norte 1–11, centro arriba 12–27, centro abajo 28–45, fila sur 46–56
+      const b = AREAS.b2, d = 1.6, cx = b[0] + b[2] / 2;
+      const T = [[1, 11, 'H', b[1] + .6, b[0] + 3], [12, 27, 'V', b[1] + 5, cx - 1.2], [28, 45, 'V', b[1] + 38, cx - .6], [46, 56, 'Hr', b[1] + b[3] - .6 - d, b[0] + 3]];
+      for (const [a0, a1, kind, y0, x0] of T) {
+        if (m < a0 || m > a1) continue;
+        const n = a1 - a0 + 1, i = m - a0;
+        if (kind === 'V') { const len = kind === 'V' && a0 === 12 ? 30 : 31, h = len / n; return { x: x0, y: y0 + i * h, w: d, h }; }
+        const len = b[2] - 6, w = len / n;
+        return { x: kind === 'H' ? x0 + i * w : x0 + len - (i + 1) * w, y: y0, w, h: d };
+      }
+      return null;
     }
     if (p === 17) { const b = AREAS.ed5; return { x: b[0] + 0.8, y: b[1] + 1, w: 6.5, h: b[3] - 2 }; }
     const c = AISLE_X[p]; if (c === undefined) return null;
@@ -87,7 +94,6 @@
       label(AISLE_X[p], -0.35, p, { fill: C['--accent'], 'font-size': 1.3, 'font-weight': 700, 'data-aisle': p, style: 'cursor:pointer' }, g);
     }
     label(AREAS.b2[0] + AREAS.b2[2] / 2, AREAS.b2[1] - 1, 'BODEGA 2 · P18', { fill: C['--ink'] }, g);
-    { const b = AREAS.b2, cx = b[0] + b[2] / 2, cy = b[1] + b[3] / 2; label(cx, cy, 'PASILLO CENTRAL', { 'font-size': 1.1, transform: `rotate(-90 ${cx} ${cy})`, 'letter-spacing': .3 }, g); }
     label(AREAS.ed5[0] + 4, AREAS.ed5[1] - 1, 'P17 · bodega chica', { fill: C['--ink'] }, g);
     label(AREAS.sub[0] + AREAS.sub[2] / 2, AREAS.sub[1] + AREAS.sub[3] / 2, 'SUBESTÁNDAR', { 'font-size': 1.3 }, g);
     for (const k of ['c2', 'c3', 'c4']) { const a = AREAS[k]; label(a[0] + a[2] / 2, a[1] + a[3] / 2 + .6, k.toUpperCase() + ' · staging', { 'font-size': 1.6 }, g); }
