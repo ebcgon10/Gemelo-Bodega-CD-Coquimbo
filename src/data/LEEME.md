@@ -10,6 +10,7 @@ Para tener la demo precargada, copia aquí tus exportaciones con estos nombres:
 | `preferencias.csv` | Hoja PREFERENCIA de "Datos para armar" |
 | `zonas.csv` | Hoja ZM de "Datos para armar" |
 | `capacidades.csv` | Hoja UBICACIONES de "Datos para armar" |
+| `maestro.csv` | Hoja MAESTRO UBI de "Datos para armar" (todas las ubicaciones) |
 | `bbdd.csv` | BBDD de materiales: Numero de material, Texto breve, Cajas por Pallet, Centro, Grupo (sin precios) |
 
 Sin estos archivos la página funciona igual: se cargan arrastrándolos o con el botón "Cargar archivos del WMS".

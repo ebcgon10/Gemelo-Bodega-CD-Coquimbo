@@ -63,7 +63,7 @@ test('pasillo 19: pallets por LPN distinto y capacidad 14', () => {
   const m = mk();
   assert.strictEqual(m.positions.get('19-02-01').pallets, 2);
   assert.strictEqual(m.kpi.p19.pallets, 2);
-  assert.strictEqual(m.kpi.p19.capacidad, 44 * 14);
+  assert.strictEqual(m.kpi.p19.capacidad, 22 * 14 + 22 * 10);
   assert.ok(m.positions.has('19-44-01'));
 });
 
@@ -132,7 +132,7 @@ test('modulePlace: pasillo en U (1–18 cara, 19–20 cabecera, 21–38 otra car
   assert.deepStrictEqual(M.modulePlace(40, 22), { side: 'R', i: 0, k: 19 });
 });
 
-test('perchas de picking: P10 1–18 (6 pallets) y P11 21–38 (10) tienen un solo nivel', () => {
+test('perchas de picking: P10 1–18 (5 pallets) y P11 21–38 (8) tienen un solo nivel', () => {
   const H = 'Almacen,Area,Ubicacion,LPN,Articulo,Descripcion,Cantidad,Estado de inventario,Vida util,Vida util pond,Fecha de fabricacion,Fecha de caducidad\n';
   const vu = H + 'C,SURTID,10-02-01-01,L1,A,PA,120,D,90,x,,\n';
   const caps = M.parseCaps(M.parseCSV('NOMBRE UBICACIÓN,AREA,PASILLO,CAPACIDAD MAXIMA\n10-02-01-01,SURTID,10,240 Piezas\n').rows);
@@ -143,10 +143,10 @@ test('perchas de picking: P10 1–18 (6 pallets) y P11 21–38 (10) tienen un so
   assert.strictEqual(m.positions.has('11-25-02'), false);
   assert.strictEqual(m.positions.has('11-05-02'), true);
   const P = m.positions.get('10-02-01');
-  assert.strictEqual(P.percha, 6);
+  assert.strictEqual(P.percha, 5);
   assert.strictEqual(P.fill, 0.5);
   assert.strictEqual(P.palletsEst, 3);
-  assert.strictEqual(m.positions.get('11-30-01').percha, 10);
+  assert.strictEqual(m.positions.get('11-30-01').percha, 8);
   assert.strictEqual(m.kpi.porPasillo.find(x => x.p === 10).total, 38 + 20 * 2);
 });
 

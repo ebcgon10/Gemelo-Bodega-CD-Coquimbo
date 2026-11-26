@@ -11,11 +11,13 @@
     9: [38, 3], 10: [38, 3], 11: [38, 3], 12: [38, 3], 13: [38, 3], 14: [38, 3], 15: [38, 3],
     16: [40, 3], 17: [1, 1], 18: [56, 3], 19: [44, 1]
   };
-  const CAP_P19 = 14;
+  // Perchas P19 (fijo): mitad de 14 pallets (19-01 a 19-22) y mitad de 10 (19-23 a 19-44).
+  const CAP_P19 = 14, CAP_P19_B = 10, P19_CORTE = 22;
+  const capP19 = m => (m <= P19_CORTE ? CAP_P19 : CAP_P19_B);
   // Carpa C5 (REBA-02): 30 filas × (percha lateral 14 + 2 centrales 11 + lateral 14) = 120 perchas, ~1.500 pallets
   const C5 = { id: 'REBA-02', filas: 30, lateral: 14, central: 11, capacidad: 1500 };
   // Perchas de picking (un solo nivel, varios pallets): pasillo → [módulo desde, hasta, pallets]
-  const PERCHA_PICK = { 10: [1, 18, 6], 11: [21, 38, 10] };
+  const PERCHA_PICK = { 10: [1, 18, 5], 11: [21, 38, 8] };   // fijo
   const perchaCap = (p, m) => { const c = PERCHA_PICK[p]; return c && m >= c[0] && m <= c[1] ? c[2] : 0; };
   const STAGE_IDS = ['REBA-01', 'STREC01', 'STREC02', 'STREC03', 'STREC04', 'STREC05', 'STREC06'];
 
@@ -52,6 +54,7 @@
     if (h.includes('numero de articulo') && h.some(x => x.startsWith('posicion picking nivel 1'))) return 'preferencia';
     if (h.includes('ubicacion') && h.includes('zona de trabajo')) return 'zonas';
     if (h.includes('nombre ubicacion') && h.includes('capacidad maxima')) return 'capacidades';
+    if (h.includes('ubicacion') && h.includes('capacidad maxima') && h.includes('area')) return 'maestro';
     if (h.includes('numero de material') && h.includes('centro')) return 'bbdd';
     if (!h.includes('ubicacion') || !h.includes('articulo')) return null;
     if (h.includes('vida util')) return 'vidautil';
@@ -209,7 +212,7 @@
     });
     const ocupadas = all.filter(x => x.items.length).length;
     const p19 = all.filter(x => x.p === 19);
-    const p19pal = p19.reduce((s, x) => s + x.pallets, 0);
+    const p19pal = p19.reduce((s, x) => s + x.pallets, 0), p19cap = p19.reduce((s, x) => s + capP19(x.m), 0);
     const stage = STAGE_IDS.map(id => ({
       id, items: stageRecs[id], lpns: countPallets(stageRecs[id]),
       skus: new Set(stageRecs[id].map(i => i.sku)).size
@@ -225,7 +228,7 @@
         capCompleta: all.length, capReal, bloqueadas, asignadasVacias: asignadas,
         bloqAltura: all.filter(x => x.block === 'altura').length, bloqExt: all.filter(x => x.block === 'ext').length,
         porPasillo, porNivel, vence30: vence, otrasFilas: otros,
-        p19: { pallets: p19pal, capacidad: p19.length * CAP_P19, libres: Math.max(0, p19.length * CAP_P19 - p19pal) },
+        p19: { pallets: p19pal, capacidad: p19cap, libres: p19.reduce((s, x) => s + Math.max(0, capP19(x.m) - x.pallets), 0) },
         stageLpn: stage.reduce((s, x) => s + x.lpns, 0)
       }
     };
@@ -234,7 +237,7 @@
   // Sugerencia de guardado para los LPN de una zona de stage.
   function newCtx(model) {
     const ctx = { used: new Set(), p19room: {} };
-    for (const P of model.positions.values()) if (P.p === 19) ctx.p19room[P.pos] = CAP_P19 - P.pallets;
+    for (const P of model.positions.values()) if (P.p === 19) ctx.p19room[P.pos] = capP19(P.m) - P.pallets;
     return ctx;
   }
 
@@ -324,7 +327,7 @@
     for (const k in bySku) bySku[k].sort((a, b) => (a.vu ?? 1e9) - (b.vu ?? 1e9));
     const perchas = all.filter(P => P.p === 19).map(P => {
       const u = unitsOf(P);
-      return { pos: P.pos, units: u, skus: new Set(u.map(x => x.sku)), vus: u.map(x => x.vu).filter(v => v !== null) };
+      return { pos: P.pos, cap: Math.min(o.cap, capP19(P.m)), units: u, skus: new Set(u.map(x => x.sku)), vus: u.map(x => x.vu).filter(v => v !== null) };
     });
     const moves = [], used = new Set(), completadas = new Set();
     const mv = (tipo, u, destino, motivo) => { used.add(u); moved[u.pos] = (moved[u.pos] || 0) + 1; moves.push({ tipo, lpn: u.lpn, sku: u.sku, desc: u.desc, qty: u.qty, vu: u.vu, origen: u.pos, destino, motivo }); };
@@ -333,7 +336,7 @@
     for (const pc of perchas) {
       if (pc.skus.size !== 1) continue;
       const sku = [...pc.skus][0], vus = pc.vus.slice();
-      let room = o.cap - pc.units.length;
+      let room = pc.cap - pc.units.length;
       for (const u of (bySku[sku] || [])) {
         if (room <= 0) break;
         if (used.has(u)) continue;
@@ -380,7 +383,7 @@
         pc.units.forEach((u, k) => moves.push({ tipo: 'liberar', lpn: u.lpn, sku: u.sku, desc: u.desc, qty: u.qty, vu: u.vu, origen: pc.pos, destino: dests[k], motivo: 'Libera la percha para ' + c.sku + ' (' + c.units.length + ' pallets)' }));
         consumidas += dests.length; target = pc; motivo = 'Percha liberada';
       }
-      for (const u of c.units) mv('asignar', u, target.pos, motivo + ' asignada a código con ' + c.units.length + ' pallets en almacenamiento');
+      for (const u of c.units.slice(0, target.cap)) mv('asignar', u, target.pos, motivo + ' asignada a código con ' + c.units.length + ' pallets en almacenamiento');
     }
     let liberadas = 0;
     for (const pos in moved) if (moved[pos] >= posTotal[pos]) liberadas++;
@@ -448,6 +451,91 @@
     }
     return b;
   }
+
+  // ---------- Capacidad total de bodega en pallets (hoja MAESTRO UBI) ----------
+  // Hoja MAESTRO UBI: todas las ubicaciones con su área y capacidad (Palés o Piezas).
+  function parseMaestro(rows) {
+    const out = [];
+    for (const r of rows) {
+      const ubic = gk(r, 'ubicacion').toUpperCase(), u = parseUbic(ubic); if (!u) continue;
+      const capTxt = gk(r, 'capacidad maxima');
+      out.push({ ubic, u, area: gk(r, 'area').toUpperCase(), pasillo: num(gk(r, 'pasillo')),
+        cap: num((capTxt.match(/[\d.,]+/) || [''])[0]) || 0, unit: /pal/i.test(capTxt) ? 'pal' : 'pz' });
+    }
+    return out;
+  }
+
+  const CAP_DEF = { c5: 1500, maxRack: 3, pasillos: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19] };
+  const skuKey = s => String(s || '').trim().toUpperCase().replace(/^0+(?=\w)/, '');
+
+  // Capacidad y ocupación en pallets por posición física (PP-MM-NN).
+  // cap (fija): P19 = 14 (19-01 a 19-22) y 10 (19-23 a 19-44); perchas de picking P10 = 5, P11 = 8;
+  //      rack N2–N3 = Palés del WMS; surtido N1 = 1 pallet base. Pallets: P19 = LPN; resto = cajas / cajas por pallet (restos remontados suman en fracción).
+  function capacityReport(model, maestro, opts) {
+    const o = Object.assign({}, CAP_DEF, opts || {}), bb = o.bbdd || null;
+    const cpp = sku => { if (!bb) return null; const b = bb.get(sku) || bb.get(skuKey(sku)); return b && b.cajasPallet ? b.cajasPallet : null; };
+    if (bb && !bb._norm) { for (const [k, v] of [...bb]) if (!bb.has(skuKey(k))) bb.set(skuKey(k), v); bb._norm = true; }
+    const pchCap = perchaCap;
+    const byPos = new Map(), anom = [], excl = { p17: 0, perchasN23: new Set(), otros: 0 };
+    for (const r of maestro) {
+      const { p, m, n, pos } = r.u;
+      if (p === 17) { excl.p17++; continue; }
+      if (!o.pasillos.includes(p)) { excl.otros++; continue; }
+      if (n > 1 && pchCap(p, m)) { excl.perchasN23.add(pos); continue; }
+      if (r.pasillo && r.pasillo !== p) anom.push({ pos: r.ubic, txt: `el maestro la asigna al pasillo ${r.pasillo}` });
+      let X = byPos.get(pos);
+      if (!X) byPos.set(pos, X = { pos, p, m, n, area: r.area, subs: 0, wmsPal: 0, unit: r.unit });
+      X.subs++;
+      if (r.unit === 'pal') X.wmsPal = Math.max(X.wmsPal, r.cap);
+    }
+    const posList = [...byPos.values()];
+    for (const X of posList) {
+      const P = model.positions.get(X.pos), items = P ? P.items : [];
+      X.items = items; X.block = P ? P.block : null; X.skus = [...new Set(items.map(i => i.sku))];
+      X.lpn = items.length ? countPallets(items) : 0;
+      let eq = 0; for (const it of items) { const c = cpp(it.sku); eq += c ? it.qty / c : it.lpnCount; }
+      X.eq = Math.round(eq * 100) / 100;
+      if (X.p === 19) {
+        X.tipo = 'p19'; X.cap = capP19(X.m); X.pal = X.lpn;
+      } else if (pchCap(X.p, X.m)) {
+        X.tipo = 'percha'; X.cap = pchCap(X.p, X.m); X.pal = items.length ? Math.max(1, Math.ceil(eq - 1e-9)) : 0;
+      } else if (X.n === 1) {
+        X.tipo = X.p === 18 ? 'b2' : 'surtido'; X.cap = X.wmsPal > 1 && X.wmsPal <= o.maxRack ? X.wmsPal : 1;
+        if (X.wmsPal > o.maxRack) anom.push({ pos: X.pos, txt: `WMS dice ${X.wmsPal} palés en nivel 1; se usa 1 hasta validar` });
+        X.pal = !items.length ? 0 : X.cap > 1 ? Math.max(1, Math.ceil(eq - 1e-9)) : 1;
+      } else {
+        X.tipo = X.p === 18 ? 'b2' : 'rack'; X.cap = X.wmsPal || 1;
+        if (X.wmsPal > o.maxRack) { anom.push({ pos: X.pos, txt: `WMS dice ${X.wmsPal} palés; se usa 1 hasta validar` }); X.cap = 1; }
+        X.pal = items.length ? Math.max(1, Math.ceil(eq - 1e-9)) : 0;
+      }
+      X.capBloq = X.block && !items.length ? X.cap : 0;
+      X.ocup = Math.min(X.pal, X.cap);                 // pallets dentro de la capacidad de la ubicación
+      X.sobre = Math.max(0, X.pal - X.cap);            // pallets por sobre la capacidad (remonte / sobrellenado)
+      X.libres = X.cap - X.ocup - X.capBloq;           // así: capacidad real − ocupados = disponibles
+      X.remonte = X.n > 1 && X.tipo !== 'p19' && X.tipo !== 'percha' && X.lpn > X.cap;   // varios LPN/códigos remontados en la misma ubicación
+    }
+    const ZONAS = [
+      ['surtido', 'Picking 1–16 · N1 surtido', X => X.tipo === 'surtido'],
+      ['rack', 'Picking 1–16 · N2–N3 almacenamiento', X => X.tipo === 'rack'],
+      ['percha', 'Perchas picking P10 / P11', X => X.tipo === 'percha'],
+      ['b2', 'Pasillo 18 · Bodega 2', X => X.tipo === 'b2'],
+      ['p19', 'Pasillo 19 · Bodega 1 (perchas)', X => X.tipo === 'p19']
+    ];
+    const agg = (id, label, L) => {
+      const s = { id, label, pos: L.length, cap: 0, capBloq: 0, pal: 0, ocup: 0, lpn: 0, libres: 0, sobre: 0, vacias: 0, remontes: 0, bloqueadas: 0 };
+      for (const X of L) { s.cap += X.cap; s.capBloq += X.capBloq; s.pal += X.pal; s.ocup += X.ocup; s.lpn += X.lpn; s.libres += X.libres; s.sobre += X.sobre; if (!X.items.length) s.vacias++; if (X.remonte) s.remontes++; if (X.capBloq) s.bloqueadas++; }
+      s.capReal = s.cap - s.capBloq; s.pct = s.cap ? s.ocup / s.cap : 0; s.pctReal = s.capReal ? s.ocup / s.capReal : 0;
+      return s;
+    };
+    const zonas = ZONAS.map(([id, label, f]) => agg(id, label, posList.filter(f)));
+    const total = agg('total', 'Total bodega (1–16, 18, 19)', posList);
+    const pasillos = o.pasillos.map(p => Object.assign(agg('p' + p, 'Pasillo ' + p, posList.filter(X => X.p === p)), { p })).filter(x => x.pos);
+    const p19 = posList.filter(X => X.tipo === 'p19').sort((a, b) => a.m - b.m)
+      .map(X => ({ pos: X.pos, m: X.m, skus: X.skus, desc: X.items.length ? X.items[0].desc : '', pal: X.pal, cap: X.cap, minVU: P19vu(X.items) }));
+    const fuera = { stage: model.stage.reduce((s, x) => s + x.lpns, 0), c5: { pal: model.c5.pallets, cap: o.c5, pct: o.c5 ? model.c5.pallets / o.c5 : 0 } };
+    return { zonas, total, pasillos, p19, posiciones: posList, anomalias: anom, excluidas: { p17: excl.p17, perchasN23: excl.perchasN23.size, otros: excl.otros }, fuera, params: o, sinBBDD: !bb };
+  }
+  function P19vu(items) { const v = items.map(i => i.vu).filter(x => x !== null && x !== undefined); return v.length ? Math.min(...v) : null; }
 
   // ---------- Carpa C5 (REBA-02): solo aguas y gaseosas ----------
   function unitsFromItems(items, pos) {
@@ -595,5 +683,5 @@
     return { side: 'R', i: m - k - 3, k };
   }
 
-  return { planC5, hojaRuta, parseBBDD, moveToC5, C5, PERCHA_PICK, perchaCap, modulePlace, consolidateP19, fillPicking, parseCaps, pickingReport, parsePrefs, parseZonas, LAYOUT, CAP_P19, STAGE_IDS, parseCSV, detectKind, parseUbic, parseFecha, normalize, buildModel, suggestStage, suggestAll, countPallets };
+  return { capP19, CAP_P19_B, P19_CORTE, parseMaestro, capacityReport, CAP_DEF, planC5, hojaRuta, parseBBDD, moveToC5, C5, PERCHA_PICK, perchaCap, modulePlace, consolidateP19, fillPicking, parseCaps, pickingReport, parsePrefs, parseZonas, LAYOUT, CAP_P19, STAGE_IDS, parseCSV, detectKind, parseUbic, parseFecha, normalize, buildModel, suggestStage, suggestAll, countPallets };
 });

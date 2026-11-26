@@ -178,7 +178,7 @@
       const P = c.P, r = c.r, hit = matches(P);
       if ((S.q || S.zt) && hit) hits++;
       if ((P.p === 19 || P.percha) && S.mode === 'occ') {
-        const raw = P.p === 19 ? P.pallets / M.CAP_P19 : (P.fill ?? (P.items.length ? 1 : 0)), ratio = Math.min(1, raw);
+        const raw = P.p === 19 ? P.pallets / M.capP19(P.m) : (P.fill ?? (P.items.length ? 1 : 0)), ratio = Math.min(1, raw);
         r.setAttribute('fill', C['--free']); r.setAttribute('fill-opacity', .9);
         const G = c.G, hh = (G.h - .16) * 1;
         c.fill.setAttribute('x', G.x); c.fill.setAttribute('width', G.w * ratio);
@@ -278,12 +278,19 @@
   function renderPanels() {
     const m = S.model, k = m.kpi;
     const sinDest = Object.values(S.allSug || (S.allSug = M.suggestAll(m))).flat().filter(x => !x.destino).length;
+    const R = S.cap = S.ref.maestro ? M.capacityReport(m, S.ref.maestro.data, capParams()) : null;
     const capTxt = m.hasPrefs ? `<div class="l">−${fmt(k.bloqueadas)} bloqueadas: ${fmt(k.bloqAltura)} por altura de picking (N2) y ${fmt(k.bloqExt)} por picking de doble espacio (N1)</div>` : '<div class="l">Carga las preferencias para descontar los niveles bloqueados.</div>';
-    $('kpis').innerHTML = `
+    const T = R && R.total, p19z = R && R.zonas.find(z => z.id === 'p19');
+    const capKpi = R ? `
+      <div class="kpi cap" style="grid-column:span 2"><div class="row" style="gap:18px;align-items:flex-end"><div><div class="v">${fmt(T.cap)}</div><div class="l">pallets capacidad completa</div></div><div style="color:var(--muted);font:600 22px var(--display)">→</div><div><div class="v" style="color:var(--accent)">${fmt(T.capReal)}</div><div class="l">capacidad real</div></div></div><div class="l">Pasillos 1–16, 18 y 19 · −${fmt(T.capBloq)} pallets en posiciones bloqueadas por altura o doble espacio</div><div class="meter cap"><span style="width:${T.capReal / T.cap * 100}%;background:var(--accent)"></span><span style="width:${T.capBloq / T.cap * 100}%;background:var(--alt)"></span></div></div>
+      <div class="kpi free"><div class="v">${fmt(T.libres)}</div><div class="l">pallets disponibles reales (${fmt(T.capReal)} − ${fmt(T.ocup)} ocupados)</div></div>
+      <div class="kpi"><div class="v">${pct(T.pctReal)}</div><div class="l">ocupación bodega sobre capacidad real · picking por posiciones ${pct(k.pctOcc)}</div><div class="meter"><span style="width:${Math.min(100, T.pctReal * 100)}%"></span></div></div>
+      <div class="kpi free"><div class="v">${fmt(p19z.libres)}</div><div class="l">pallets disponibles Bodega 1 (${fmt(p19z.ocup)} de ${fmt(p19z.cap)})</div></div>` : null;
+    $('kpis').innerHTML = (capKpi || `
       <div class="kpi cap" style="grid-column:span 2"><div class="row" style="gap:18px;align-items:flex-end"><div><div class="v">${fmt(k.capCompleta)}</div><div class="l">capacidad completa</div></div><div style="color:var(--muted);font:600 22px var(--display)">→</div><div><div class="v" style="color:var(--accent)">${fmt(k.capReal)}</div><div class="l">capacidad real</div></div></div>${capTxt}<div class="meter cap"><span style="width:${k.capReal / k.capCompleta * 100}%;background:var(--accent)"></span><span style="width:${k.bloqueadas / k.capCompleta * 100}%;background:var(--alt)"></span></div></div>
       <div class="kpi free"><div class="v">${fmt(k.libres)}</div><div class="l">libres reales${m.hasPrefs ? ` (${fmt(k.total - k.ocupadas)} vacías en el sistema, ${fmt(k.asignadasVacias)} con preferencia)` : ''}</div></div>
       <div class="kpi"><div class="v">${pct(k.pctOcc)}</div><div class="l">ocupación sobre capacidad real</div><div class="meter"><span style="width:${Math.round(k.pctOcc * 100)}%"></span></div></div>
-      <div class="kpi free"><div class="v">${fmt(k.p19.libres)}</div><div class="l">pallets libres Bodega 1 (${fmt(k.p19.pallets)} de ${fmt(k.p19.capacidad)})</div></div>
+      <div class="kpi free"><div class="v">${fmt(k.p19.libres)}</div><div class="l">pallets libres Bodega 1 (${fmt(k.p19.pallets)} de ${fmt(k.p19.capacidad)})</div></div>`) + `
       <div class="kpi" style="border-left:3px solid #a970d6"><div class="v">${fmt(m.c5.pallets)}</div><div class="l">pallets en C5 · REBA-02 de ${fmt(m.c5.capacidad)}</div><div class="meter"><span style="width:${Math.min(100, m.c5.pallets / m.c5.capacidad * 100)}%;background:#a970d6"></span></div></div>
       <div class="kpi stage"><div class="v">${fmt(k.stageLpn)}</div><div class="l">LPN en stage C1 por guardar${sinDest ? ` · <span style="color:var(--crit)">${fmt(sinDest)} sin espacio libre</span>` : ''}</div></div>
       <div class="kpi crit" style="grid-column:span 2"><div class="row" style="justify-content:space-between"><div><div class="v" style="color:var(--crit)">${fmt(k.vence30)}</div><div class="l">posiciones con producto a ≤ 30 días de vencer</div></div><button class="btn" id="seevu">Ver en el plano</button></div></div>`;
@@ -291,7 +298,7 @@
     $('levels').innerHTML = k.porNivel.map(n => `<div><b>${fmt(n.libres)}</b><small>N${n.n} libres${n.bloq ? ` · <span style="color:var(--alt)">${fmt(n.bloq)} bloq.</span>` : ''}</small></div>`).join('');
     const rk = k.porPasillo.filter(x => x.p !== 17 && x.p !== 19).sort((a, b) => b.libres - a.libres);
     $('rank').innerHTML = rk.map(x => `<button data-p="${x.p}" title="Ver pasillo ${x.p}"><span class="n">P${pad(x.p)}</span><span class="bar"><span class="o" style="width:${x.ocup / x.total * 100}%"></span><span style="background:var(--asig);width:${Math.max(0, x.total - x.ocup - x.bloq - x.libres) / x.total * 100}%"></span><span style="background:var(--alt);width:${x.bloq / x.total * 100}%"></span><span class="f" style="width:${x.libres / x.total * 100}%"></span></span><span class="c">${x.libres} libres</span></button>`).join('');
-    renderStage(); renderPicking(); renderP19(); renderFill(); renderC5();
+    renderStage(); renderPicking(); renderP19(); renderFill(); renderC5(); renderCap();
   }
   function renderC5() {
     const m = S.model, bb = S.ref.bbdd && S.ref.bbdd.data;
@@ -317,7 +324,7 @@
   function moveRows(list) {
     return list.map((x, i) => `<tr class="sug${x.avisoFefo ? ' warnrow' : ''}" data-i="${i}"><td>${x.tipo ? `<span class="chip-t">${esc(TIPO[x.tipo])}</span><br>` : ''}<span class="mono">${esc(String(x.lpn).slice(-8))}</span> · ${esc(x.desc)}<br><span class="note mono">${esc(x.sku)} · ${fmt(x.qty)} cj</span></td><td>${vuBadge(x.vu)}</td><td><b class="mono">${esc(x.origen)}</b> → <b class="mono" style="color:var(--free)">${esc(x.destino)}</b><br><span class="note">${esc(x.motivo)}</span></td></tr>`).join('') || '<tr><td colspan="3" class="note">Sin movimientos sugeridos.</td></tr>';
   }
-  function p19params() { const v = id => +$(id).value; return { cap: v('p19cap') || 14, ventana: v('p19ven'), liberarMax: v('p19lib'), minPallets: v('p19min') || 1 }; }
+  function p19params() { const v = id => +$(id).value; return { cap: M.CAP_P19, ventana: v('p19ven'), liberarMax: v('p19lib'), minPallets: v('p19min') || 1 }; }
   function renderP19() {
     const m = S.model; S.p19 = M.consolidateP19(m, p19params());
     const r = S.p19, cnt = t => r.moves.filter(x => x.tipo === t).length;
@@ -374,7 +381,7 @@
       : P.block === 'ext' ? `<b style="color:var(--ext)">BLOQUEADA</b> · segundo espacio del picking de ${esc(P.blockBy)}`
       : (!P.items.length && P.status === 'asignada') ? `<b style="color:var(--asig)">PREFERENCIA SIN STOCK</b> · reservada para ${esc(P.pref.join(', '))}`
       : P.percha ? `Percha de picking (un solo nivel) · ${P.capCj ? fmt(P.items.reduce((s, i) => s + i.qty, 0)) + ' de ' + fmt(P.capCj) + ' cajas · ≈' + P.palletsEst + ' de ' + P.percha + ' pallets' : 'capacidad ' + P.percha + ' pallets'}`
-      : !P.items.length ? '<span class="ok">LIBRE</span>' : P.p === 19 ? `${P.pallets} de ${M.CAP_P19} pallets` : (P.n === 1 ? 'Surtido' : 'Almacenamiento');
+      : !P.items.length ? '<span class="ok">LIBRE</span>' : P.p === 19 ? `${P.pallets} de ${M.capP19(P.m)} pallets` : (P.n === 1 ? 'Surtido' : 'Almacenamiento');
     const rows = P.items.slice().sort((a, b) => (a.vu ?? 1e9) - (b.vu ?? 1e9)).map(i => `<tr><td class="mono">${esc(i.ubic.split('-').pop())}</td><td>${esc(i.desc)}<br><span class="note mono">${esc(i.sku)}${i.lpn ? ' · ' + esc(i.lpn.slice(-8)) : ''}</span></td><td class="mono">${fmt(i.qty)}</td><td>${vuBadge(i.vu)}</td></tr>`).join('');
     D.innerHTML = `<button class="x" aria-label="Cerrar">×</button><div class="mono" style="font-size:18px;color:var(--accent)">${pos}</div><div class="note">${zona} · Pasillo ${P.p} · Módulo ${P.m} · Nivel ${P.n}${P.zona ? ' · ' + esc(P.zona.zt) + ' / ' + esc(P.zona.zm) : ''}${P.pref.length && P.items.length ? ' · Preferencia: ' + esc(P.pref.join(', ')) : ''}</div><div style="margin:6px 0">${est}</div>${rows ? `<div class="tablebox" style="max-height:220px"><table><thead><tr><th>Sub</th><th>Producto</th><th>Cant.</th><th>Días</th></tr></thead><tbody>${rows}</tbody></table></div>` : (P.block || P.status === 'asignada' ? '' : '<div class="note">Posición disponible para guardar.</div>')}`;
     D.classList.add('on'); D.querySelector('.x').onclick = () => { D.classList.remove('on'); highlight(null); };
@@ -484,7 +491,7 @@
     else if (!P.items.length) body = '<span class="ok">Libre</span>';
     else {
       const sk = [...new Set(P.items.map(i => i.desc))];
-      body = (P.p === 19 ? `<b>${P.pallets} / ${M.CAP_P19} pallets</b><br>` : P.percha ? `<b>Percha de picking · ${P.fill != null ? '≈' + P.palletsEst + ' de ' + P.percha + ' pallets (' + Math.round(P.fill * 100) + ' %)' : 'capacidad ' + P.percha + ' pallets'}</b><br>` : '') + sk.slice(0, 3).map(esc).join('<br>') + (sk.length > 3 ? `<br><span class="note">+${sk.length - 3} más</span>` : '') + (P.minVU !== null ? `<br><span class="note">Vence en ${P.minVU} días</span>` : '');
+      body = (P.p === 19 ? `<b>${P.pallets} / ${M.capP19(P.m)} pallets</b><br>` : P.percha ? `<b>Percha de picking · ${P.fill != null ? '≈' + P.palletsEst + ' de ' + P.percha + ' pallets (' + Math.round(P.fill * 100) + ' %)' : 'capacidad ' + P.percha + ' pallets'}</b><br>` : '') + sk.slice(0, 3).map(esc).join('<br>') + (sk.length > 3 ? `<br><span class="note">+${sk.length - 3} más</span>` : '') + (P.minVU !== null ? `<br><span class="note">Vence en ${P.minVU} días</span>` : '');
     }
     T.innerHTML = `<div class="t">${esc(pos)}</div>${body}`;
     const r = $('mapwrap').getBoundingClientRect();
@@ -566,7 +573,49 @@
   wireMoves('fill', 'filltab', 'fillrows', () => renderFill(), 'Movimiento no dirigido · llenado de surtido', 'llenado');
   wireMoves('c5', 'c5tab', 'c5rows', () => renderC5(), 'Movimiento no dirigido · traslado a carpa C5 (REBA-02)', 'C5');
   let c5t; $('c5ven').addEventListener('input', () => { clearTimeout(c5t); c5t = setTimeout(() => { if (S.model) renderC5(); }, 250); });
-  let pt; ['p19cap', 'p19ven', 'p19lib', 'p19min'].forEach(id => $(id).addEventListener('input', () => { clearTimeout(pt); pt = setTimeout(() => { if (S.model) renderP19(); }, 250); }));
+  let pt; ['p19ven', 'p19lib', 'p19min'].forEach(id => $(id).addEventListener('input', () => { clearTimeout(pt); pt = setTimeout(() => { if (S.model) renderP19(); }, 250); }));
+  // ---------- Capacidad total de bodega (pallets) ----------
+  function capParams() { return { bbdd: S.ref.bbdd && S.ref.bbdd.data }; }
+  function renderCap() {
+    const m = S.model;
+    if (!S.ref.maestro) { S.cap = null; $('capkpi').innerHTML = '<div class="note" style="grid-column:span 2">Carga el Excel "Datos para armar" con la hoja MAESTRO UBI (todas las ubicaciones con su capacidad).</div>'; ['capzonas', 'caprank', 'capp19body', 'capextra'].forEach(id => { $(id).innerHTML = ''; }); return; }
+    const R = S.cap || (S.cap = M.capacityReport(m, S.ref.maestro.data, capParams())), T = R.total, c5 = R.fuera.c5;
+    $('capkpi').innerHTML = `
+      <div class="kpi cap" style="grid-column:span 2"><div class="row" style="gap:18px;align-items:flex-end"><div><div class="v">${fmt(T.cap)}</div><div class="l">pallets capacidad completa</div></div><div style="color:var(--muted);font:600 22px var(--display)">→</div><div><div class="v" style="color:var(--accent)">${fmt(T.capReal)}</div><div class="l">capacidad real</div></div></div><div class="l">−${fmt(T.capBloq)} pallets en posiciones bloqueadas por altura o doble espacio · ${fmt(T.pos)} ubicaciones físicas</div><div class="meter cap"><span style="width:${T.capReal / T.cap * 100}%;background:var(--accent)"></span><span style="width:${T.capBloq / T.cap * 100}%;background:var(--alt)"></span></div></div>
+      <div class="kpi"><div class="v">${fmt(T.ocup)}</div><div class="l">pallets ocupados${T.sobre ? ` · +${fmt(T.sobre)} remontados` : ''} (${fmt(T.lpn)} LPN en el WMS)</div></div>
+      <div class="kpi free"><div class="v">${fmt(T.libres)}</div><div class="l">pallets disponibles reales (${fmt(T.capReal)} − ${fmt(T.ocup)})</div></div>
+      <div class="kpi"><div class="v">${pct(T.pct)}</div><div class="l">ocupación sobre capacidad completa</div><div class="meter"><span style="width:${Math.min(100, T.pct * 100)}%"></span></div></div>
+      <div class="kpi"><div class="v">${pct(T.pctReal)}</div><div class="l">ocupación sobre capacidad real</div><div class="meter"><span style="width:${Math.min(100, T.pctReal * 100)}%"></span></div></div>
+      <div class="kpi" style="grid-column:span 2"><div class="l">Picking por posiciones (panel Resumen): <b>${pct(m.kpi.pctOcc)}</b> de ${fmt(m.kpi.capReal)} posiciones reales · el % en pallets de toda la bodega es <b>${pct(T.pctReal)}</b></div></div>`;
+    $('capzonas').innerHTML = R.zonas.concat([T]).map(z => `<tr${z.id === 'total' ? ' style="font-weight:700"' : ''}><td>${esc(z.label)}<div class="note">${fmt(z.pos)} ubic. · ${fmt(z.vacias)} vacías${z.sobre ? ` · +${fmt(z.sobre)} pallets remontados` : ''}</div></td><td class="mono">${fmt(z.cap)}</td><td class="mono">${fmt(z.capReal)}</td><td class="mono">${fmt(z.ocup)}</td><td class="mono">${fmt(z.libres)}</td><td class="mono">${pct(z.pctReal)}</td></tr>`).join('')
+      + `<tr><td colspan="6" class="note">Capacidad real − ocupados = disponibles. Remontados = pallets por sobre la capacidad de su ubicación (restos en altura); no restan espacio de otras ubicaciones.</td></tr>`;
+    $('caprank').innerHTML = R.pasillos.map(x => `<button data-p="${x.p}" title="Pasillo ${x.p}: ${fmt(x.ocup)} de ${fmt(x.capReal)} pallets reales"><span class="n">P${pad(x.p)}</span><span class="bar"><span class="o" style="width:${x.ocup / x.cap * 100}%"></span><span style="background:var(--alt);width:${x.capBloq / x.cap * 100}%"></span><span class="f" style="width:${x.libres / x.cap * 100}%"></span></span><span class="c">${pct(x.pctReal)} · ${fmt(x.libres)} lib.</span></button>`).join('');
+    $('capp19body').innerHTML = R.p19.map(x => `<tr><td class="mono">${x.pos}</td><td>${x.skus.length ? esc(x.skus.join(', ')) + `<div class="note">${esc(x.desc)}</div>` : '<span class="note">vacía</span>'}</td><td class="mono">${fmt(x.pal)}</td><td class="mono"${x.pal > x.cap ? ' style="color:var(--crit)"' : ''}>${x.cap}</td></tr>`).join('');
+    const an = R.anomalias.length ? `<div class="note" style="color:var(--warn)">Datos del maestro a validar: ${R.anomalias.map(a => `${esc(a.pos)} (${esc(a.txt)})`).join(' · ')}</div>` : '';
+    $('capextra').innerHTML = `
+      <h2 style="margin-top:14px">Fuera de la capacidad de bodega</h2>
+      <div class="kpis">
+        <div class="kpi" style="border-left:3px solid #a970d6"><div class="v">${fmt(c5.pal)}</div><div class="l">pallets en carpa C5 · REBA-02 de ${fmt(c5.cap)} (${pct(c5.pct)})</div><div class="meter"><span style="width:${Math.min(100, c5.pct * 100)}%;background:#a970d6"></span></div></div>
+        <div class="kpi stage"><div class="v">${fmt(R.fuera.stage)}</div><div class="l">LPN en stage C1 (STREC + REBA-01) por guardar</div></div>
+        <div class="kpi" style="grid-column:span 2"><div class="v">${fmt(T.cap + c5.cap)}</div><div class="l">pallets bodega + carpa C5 · ${fmt(T.ocup + c5.pal)} ocupados (${pct((T.ocup + c5.pal) / (T.cap + c5.cap || 1))})</div></div>
+      </div>
+      <p class="note">Fuera del cálculo: pasillo 17 (${fmt(R.excluidas.p17)} ubicaciones) y ${fmt(R.excluidas.perchasN23)} niveles 2–3 de P10/P11 que el WMS tiene creados pero son perchas de un solo nivel.${R.sinBBDD ? ' Sin BBDD de materiales: la ocupación cuenta LPN en vez de cajas ÷ cajas por pallet.' : ''}</p>${an}`;
+  }
+  $('caprank').onclick = e => { const b = e.target.closest('button'); if (b) zoomAisle(b.dataset.p); };
+  function capCSV() {
+    const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"', R = S.cap;
+    const TIPO_CAP = { surtido: 'Surtido N1', rack: 'Rack N2-N3', percha: 'Percha picking', b2: 'Bodega 2', p19: 'Percha P19' };
+    const head = ['Ubicación', 'Pasillo', 'Módulo', 'Nivel', 'Tipo', 'Capacidad (pallets)', 'Bloqueada', 'Ocupados', 'Disponibles', 'Remontados', 'LPN WMS', 'Pallets equivalentes (cajas)', 'Códigos'];
+    const rows = R.posiciones.map(X => [X.pos, X.p, X.m, X.n, TIPO_CAP[X.tipo], X.cap, X.capBloq ? (X.block === 'altura' ? 'Altura' : 'Doble espacio') : '', X.ocup, X.libres, X.sobre, X.lpn, X.eq, X.skus.join(' ')]);
+    return '﻿' + [head, ...rows].map(r => r.map(q).join(';')).join('\r\n');
+  }
+  function capResumen() {
+    const R = S.cap, L = R.zonas.concat([R.total]).map(z => [z.label, z.cap, z.capReal, z.ocup, z.libres, Math.round(z.pctReal * 100) + '%'].join('\t'));
+    return ['Zona\tCapacidad\tReal\tOcupados\tDisponibles\t%', ...L, ['Carpa C5 (aparte)', R.fuera.c5.cap, R.fuera.c5.cap, R.fuera.c5.pal, R.fuera.c5.cap - R.fuera.c5.pal, Math.round(R.fuera.c5.pct * 100) + '%'].join('\t')].join('\n');
+  }
+  $('capcsv').onclick = () => { if (!S.cap) { $('capmsg').textContent = 'Carga primero la hoja MAESTRO UBI.'; return; } saveADC(capCSV(), 'Capacidad_bodega_' + today() + '.csv', $('capmsg')); };
+  $('capcopy').onclick = async () => { if (!S.cap) return; try { await navigator.clipboard.writeText(capResumen()); $('capmsg').textContent = 'Resumen copiado: pégalo en Excel.'; } catch { $('capmsg').textContent = 'El navegador no permitió copiar.'; } };
+
   $('nav').onclick = e => {
     const b = e.target.closest('button'); if (!b) return;
     S.panel = b.dataset.panel;
@@ -647,8 +696,8 @@
   function ingest(name, text, user) {
     const p = M.parseCSV(text), kind = M.detectKind(p.headers);
     if (!kind) { if (user) $('msg').textContent = `"${name}" no se reconoce: se esperaba cuadratura, vida útil o la hoja de preferencias / zonas.`; return false; }
-    if (kind === 'preferencia' || kind === 'zonas' || kind === 'capacidades' || kind === 'bbdd') {
-      S.ref[kind] = { name, n: p.rows.length, data: kind === 'preferencia' ? M.parsePrefs(p.rows) : kind === 'zonas' ? M.parseZonas(p.rows) : kind === 'bbdd' ? M.parseBBDD(p.rows) : M.parseCaps(p.rows) };
+    if (kind === 'preferencia' || kind === 'zonas' || kind === 'capacidades' || kind === 'bbdd' || kind === 'maestro') {
+      S.ref[kind] = { name, n: p.rows.length, data: kind === 'maestro' ? M.parseMaestro(p.rows) : kind === 'preferencia' ? M.parsePrefs(p.rows) : kind === 'zonas' ? M.parseZonas(p.rows) : kind === 'bbdd' ? M.parseBBDD(p.rows) : M.parseCaps(p.rows) };
       $('msg').textContent = ''; return true;
     }
     S.files[kind] = { name, recs: M.normalize(p.rows, kind), n: p.rows.length };
@@ -667,7 +716,7 @@
     drawCells(); renderPanels(); renderSrc();
   }
   function renderSrc() {
-    const lab = { vidautil: 'Vida útil', cuadratura: 'Cuadratura', preferencia: 'Preferencias', zonas: 'Zonas', capacidades: 'Capacidades', bbdd: 'BBDD' };
+    const lab = { vidautil: 'Vida útil', cuadratura: 'Cuadratura', preferencia: 'Preferencias', zonas: 'Zonas', capacidades: 'Capacidades', bbdd: 'BBDD', maestro: 'Maestro ubic.' };
     $('src').innerHTML = Object.keys(S.files).map(k => `<button class="chip ${k === S.main ? 'on' : ''}" data-k="${k}" title="${esc(S.files[k].name)}">${k === S.main ? '● ' : ''}${lab[k]} · ${fmt(S.files[k].n)} filas</button>`).join('')
       + Object.keys(S.ref).map(k => `<span class="chip" title="${esc(S.ref[k].name)}">${lab[k]} · ${fmt(S.ref[k].n)}</span>`).join('');
   }
@@ -703,7 +752,7 @@
     loadPlan();
     loadColors(); drawBase(); fit(VIEW_BOD);
     window.addEventListener('resize', () => fit(S.vb));
-    const demo = [['data/preferencias.csv', 'Preferencias (Datos para armar 19-11)'], ['data/zonas.csv', 'Zonas ZM (Datos para armar 19-11)'], ['data/capacidades.csv', 'Capacidades UBICACIONES (Datos para armar 19-11)'], ['data/bbdd.csv', 'BBDD Noviembre 2026'], ['data/vidautil.csv', 'Vida útil 19-11 (demo)'], ['data/cuadratura.csv', 'Cuadratura 12-11 (demo)']];
+    const demo = [['data/preferencias.csv', 'Preferencias (Datos para armar 19-11)'], ['data/zonas.csv', 'Zonas ZM (Datos para armar 19-11)'], ['data/capacidades.csv', 'Capacidades UBICACIONES (Datos para armar 19-11)'], ['data/bbdd.csv', 'BBDD Noviembre 2026'], ['data/maestro.csv', 'Maestro ubicaciones (Datos para armar 26-11)'], ['data/vidautil.csv', 'Vida útil 19-11 (demo)'], ['data/cuadratura.csv', 'Cuadratura 12-11 (demo)']];
     for (const [u, n] of demo) { try { const r = await fetch(u); if (r.ok) ingest(n, await r.text()); } catch (e) { /* sin demo */ } }
     if (S.main) rebuild(); else $('msg').textContent = 'Arrastra aquí la cuadratura de stock o las operaciones de vida útil exportadas del WMS.';
   }

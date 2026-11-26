@@ -5,9 +5,12 @@ Plano interactivo de la bodega del CD Coquimbo que pinta cada posición con los 
 
 ## Qué hace
 - **Plano**: Bodega 1 (pasillo 19 en U, perchas de 14 pallets), Picking 1 y 2 (pasillos 1–16 en U: 1–18 una cara, 19–20 cabecera, 21–38 otra cara),
-  perchas de picking de un solo nivel en el pasillo 10 (módulos 1–18, 6 pallets) y 11 (21–38, 10 pallets), Bodega 2 (18: racks en muros y dos bloques centrales de doble cara según croquis; numeración provisoria en B18_TRAMOS de app.js), bodega chica (17),
+  perchas de picking de un solo nivel en el pasillo 10 (módulos 1–18, 5 pallets) y 11 (21–38, 8 pallets), Bodega 2 (18: racks en muros y dos bloques centrales de doble cara según croquis; numeración provisoria en B18_TRAMOS de app.js), bodega chica (17),
   stage C1 (REBA-01, STREC01–06) y carpa C5 (REBA-02, 120 perchas, ~1.500 pallets).
 - **Capacidad completa vs real**: descuenta niveles bloqueados por altura del pallet de picking y picking de doble espacio (hoja de preferencias).
+- **Capacidad total de bodega (pallets)**: pasillos 1–16, 18 y 19 desde la hoja MAESTRO UBI (sin pasillo 17 ni carpa C5, que va aparte con ~1.500 pallets).
+  Capacidades fijas de perchas: P10 = 5, P11 = 8, P19 = 14 (19-01 a 19-22) y 10 (19-23 a 19-44). Disponibles = capacidad real − ocupados;
+  los restos remontados cuentan por cajas ÷ cajas por pallet. El Resumen muestra estos mismos números.
 - **Stage C1**: destino sugerido para cada LPN por FEFO, en su pasillo o zona de trabajo.
 - **Picking bloqueado**: doble altura, doble espacio, surtido sin preferencia, preferencias duplicadas o sin stock.
 - **Consolidar P19**: completa perchas del mismo código, libera perchas con pocos pallets y asigna perchas a códigos con mucho volumen
@@ -41,6 +44,6 @@ python3 -m http.server 8000
 node --test test/*.test.js
 ```
 
-Archivos que lee: cuadratura de stock, operaciones de vida útil, Excel "Datos para armar" (preferencias, zonas, capacidades) y BBDD de materiales (centro por código).
+Archivos que lee: cuadratura de stock, operaciones de vida útil, Excel "Datos para armar" (preferencias, zonas, capacidades, maestro de ubicaciones) y BBDD de materiales (centro por código).
 
 Proyecto de Elías Cortés (Planificador y Control Bodega, CCU Chile).

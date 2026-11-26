@@ -98,6 +98,8 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th { text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); padding: 4px; position: sticky; top: 0; background: var(--panel); }
 td { padding: 5px 4px; border-bottom: 1px solid #202a36; vertical-align: top; }
 td.mono, .mono { font-family: var(--mono); font-size: 12px; }
+td.mono { white-space: nowrap; }
+#caprank button { grid-template-columns: 34px 1fr 110px; }
 tr.sug:hover { background: var(--panel-2); cursor: pointer; }
 .tablebox { max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
 .vu { display: inline-block; min-width: 34px; text-align: center; border-radius: 3px; padding: 0 4px; font-family: var(--mono); font-size: 11px; color: #111; }
@@ -172,6 +174,7 @@ section[hidden] { display: none !important; }
       <button data-panel="p19" aria-pressed="false">Consolidar P19</button>
       <button data-panel="fill" aria-pressed="false">Llenado picking</button>
       <button data-panel="c5" aria-pressed="false">Carpa C5</button>
+      <button data-panel="cap" aria-pressed="false">Capacidad</button>
     </nav>
     <div id="detail"></div>
     <div id="msg"></div>
@@ -210,7 +213,6 @@ section[hidden] { display: none !important; }
       <h2>Consolidar pasillo 19</h2>
       <p class="note">Movimientos no dirigidos desde el almacenamiento de picking (N2–N3) a las perchas de Bodega 1. Percha de un solo código, con fechas dentro de la ventana; el gruero deja adelante lo más próximo a vencer.</p>
       <div class="params">
-        <label>Máx. pallets por percha<input type="number" id="p19cap" value="14" min="1" max="30"></label>
         <label>Ventana de fechas (días)<input type="number" id="p19ven" value="30" min="0" max="365"></label>
         <label>Percha "con pocos pallets" ≤<input type="number" id="p19lib" value="3" min="0" max="13"></label>
         <label>Pallets mínimos para merecer percha<input type="number" id="p19min" value="6" min="1" max="30"></label>
@@ -236,6 +238,23 @@ section[hidden] { display: none !important; }
         <button class="btn primary" id="filladc">Descargar ADC (CSV)</button>
         <button class="btn" id="fillcopy">Copiar ADC</button>
         <span class="note" id="fillmsg"></span>
+      </div>
+    </section>
+    <section data-panel="cap" hidden>
+      <h2>Capacidad total de bodega · pallets</h2>
+      <p class="note">Pasillos 1–16, 18 y 19 (sin pasillo 17 ni carpa C5). Capacidad = pallets que caben en cada ubicación: Palés del WMS en racks, 1 pallet base en surtido, perchas fijas: P10 = 5, P11 = 8, P19 = 14 (19-01 a 19-22) y 10 (19-23 a 19-44). Disponibles = capacidad real − ocupados; lo que pasa de la capacidad de una ubicación se muestra como remonte. Ocupación = cajas ÷ cajas por pallet (los restos remontados suman en fracción); en P19, LPN.</p>
+      <div class="kpis" id="capkpi"></div>
+      <h2 style="margin-top:14px">Por zona</h2>
+      <div class="tablebox"><table><thead><tr><th>Zona</th><th>Capacidad</th><th>Real</th><th>Ocupados</th><th>Disponibles</th><th>%</th></tr></thead><tbody id="capzonas"></tbody></table></div>
+      <h2 style="margin-top:14px">Por pasillo</h2>
+      <div class="rank" id="caprank"></div>
+      <h2 style="margin-top:14px">Perchas P19</h2>
+      <div class="tablebox"><table><thead><tr><th>Percha</th><th>Código</th><th>Pallets</th><th>Cap.</th></tr></thead><tbody id="capp19body"></tbody></table></div>
+      <div id="capextra"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn primary" id="capcsv">Descargar detalle (CSV)</button>
+        <button class="btn" id="capcopy">Copiar resumen</button>
+        <span class="note" id="capmsg"></span>
       </div>
     </section>
     <section data-panel="c5" hidden>
