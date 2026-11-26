@@ -10,8 +10,7 @@ Plano interactivo de la bodega del CD Coquimbo que pinta cada posición con los 
 - **Capacidad completa vs real**: descuenta niveles bloqueados por altura del pallet de picking y picking de doble espacio (hoja de preferencias).
 - **Capacidad total de bodega (pallets)**: pasillos 1–16, 18 y 19 desde la hoja MAESTRO UBI (sin pasillo 17 ni carpa C5, que va aparte con ~1.500 pallets).
   Capacidades fijas de perchas: P10 = 5, P11 = 8, P19 = 14 (19-01 a 19-22) y 10 (19-23 a 19-44). Disponibles = capacidad real − ocupados;
-  los restos remontados cuentan por cajas ÷ cajas por pallet. El Resumen muestra estos mismos números y la pestaña
-  trae la tabla "Antes vs ahora" (ver docs/2026-11-26-capacidad-en-pallets.md).
+  los restos remontados cuentan por cajas ÷ cajas por pallet. El Resumen muestra estos mismos números.
 - **Stage C1**: destino sugerido para cada LPN por FEFO, en su pasillo o zona de trabajo.
 - **Picking bloqueado**: doble altura, doble espacio, surtido sin preferencia, preferencias duplicadas o sin stock.
 - **Consolidar P19**: completa perchas del mismo código, libera perchas con pocos pallets y asigna perchas a códigos con mucho volumen

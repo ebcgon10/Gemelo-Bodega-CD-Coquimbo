@@ -578,7 +578,7 @@
   function capParams() { return { bbdd: S.ref.bbdd && S.ref.bbdd.data }; }
   function renderCap() {
     const m = S.model;
-    if (!S.ref.maestro) { S.cap = null; $('capkpi').innerHTML = '<div class="note" style="grid-column:span 2">Carga el Excel "Datos para armar" con la hoja MAESTRO UBI (todas las ubicaciones con su capacidad).</div>'; ['capantes', 'capzonas', 'caprank', 'capp19body', 'capextra'].forEach(id => { $(id).innerHTML = ''; }); return; }
+    if (!S.ref.maestro) { S.cap = null; $('capkpi').innerHTML = '<div class="note" style="grid-column:span 2">Carga el Excel "Datos para armar" con la hoja MAESTRO UBI (todas las ubicaciones con su capacidad).</div>'; ['capzonas', 'caprank', 'capp19body', 'capextra'].forEach(id => { $(id).innerHTML = ''; }); return; }
     const R = S.cap || (S.cap = M.capacityReport(m, S.ref.maestro.data, capParams())), T = R.total, c5 = R.fuera.c5;
     $('capkpi').innerHTML = `
       <div class="kpi cap" style="grid-column:span 2"><div class="row" style="gap:18px;align-items:flex-end"><div><div class="v">${fmt(T.cap)}</div><div class="l">pallets capacidad completa</div></div><div style="color:var(--muted);font:600 22px var(--display)">→</div><div><div class="v" style="color:var(--accent)">${fmt(T.capReal)}</div><div class="l">capacidad real</div></div></div><div class="l">−${fmt(T.capBloq)} pallets en posiciones bloqueadas por altura o doble espacio · ${fmt(T.pos)} ubicaciones físicas</div><div class="meter cap"><span style="width:${T.capReal / T.cap * 100}%;background:var(--accent)"></span><span style="width:${T.capBloq / T.cap * 100}%;background:var(--alt)"></span></div></div>
@@ -587,19 +587,6 @@
       <div class="kpi"><div class="v">${pct(T.pct)}</div><div class="l">ocupación sobre capacidad completa</div><div class="meter"><span style="width:${Math.min(100, T.pct * 100)}%"></span></div></div>
       <div class="kpi"><div class="v">${pct(T.pctReal)}</div><div class="l">ocupación sobre capacidad real</div><div class="meter"><span style="width:${Math.min(100, T.pctReal * 100)}%"></span></div></div>
       <div class="kpi" style="grid-column:span 2"><div class="l">Picking por posiciones (panel Resumen): <b>${pct(m.kpi.pctOcc)}</b> de ${fmt(m.kpi.capReal)} posiciones reales · el % en pallets de toda la bodega es <b>${pct(T.pctReal)}</b></div></div>`;
-    const z = id => R.zonas.find(x => x.id === id);
-    $('capantes').innerHTML = `
-      <h2 style="margin-top:14px">Antes vs ahora</h2>
-      <div class="tablebox"><table><thead><tr><th></th><th>Antes (posiciones de picking)</th><th>Ahora (pallets de bodega)</th></tr></thead><tbody>
-        <tr><td>Unidad</td><td>Ubicaciones del WMS: una percha vale 1</td><td>Pallets que caben: P10 = 5, P11 = 8, P19 = 14 / 10</td></tr>
-        <tr><td>Alcance</td><td>Solo pasillos 1–16</td><td>Pasillos 1–16, 18 y 19 (sin 17; C5 aparte)</td></tr>
-        <tr><td>Capacidad completa</td><td class="mono">${fmt(m.kpi.capCompleta)} posiciones</td><td class="mono">${fmt(T.cap)} pallets</td></tr>
-        <tr><td>Capacidad real</td><td class="mono">${fmt(m.kpi.capReal)} posiciones</td><td class="mono">${fmt(T.capReal)} pallets</td></tr>
-        <tr><td>Disponibles</td><td class="mono">${fmt(m.kpi.libres)} posiciones</td><td class="mono">${fmt(T.libres)} pallets (= ${fmt(T.capReal)} − ${fmt(T.ocup)})</td></tr>
-        <tr><td>Ocupación</td><td class="mono">${pct(m.kpi.pctOcc)}</td><td class="mono">${pct(T.pctReal)}</td></tr>
-        <tr><td>Restos remontados</td><td>Cada LPN contaba entero</td><td>Pesan por cajas ÷ cajas por pallet (+${fmt(T.sobre)} sobre capacidad)</td></tr>
-      </tbody></table></div>
-      <p class="note">El % de antes no estaba mal calculado: medía solo posiciones de picking. Lo saturado hoy es el surtido N1 (${pct(z('surtido').pctReal)}) y el pasillo 18 (${pct(z('b2').pctReal)}); el espacio está en N2–N3 (${fmt(z('rack').libres)} pallets) y en P19 (${fmt(z('p19').libres)}).</p>`;
     $('capzonas').innerHTML = R.zonas.concat([T]).map(z => `<tr${z.id === 'total' ? ' style="font-weight:700"' : ''}><td>${esc(z.label)}<div class="note">${fmt(z.pos)} ubic. · ${fmt(z.vacias)} vacías${z.sobre ? ` · +${fmt(z.sobre)} pallets remontados` : ''}</div></td><td class="mono">${fmt(z.cap)}</td><td class="mono">${fmt(z.capReal)}</td><td class="mono">${fmt(z.ocup)}</td><td class="mono">${fmt(z.libres)}</td><td class="mono">${pct(z.pctReal)}</td></tr>`).join('')
       + `<tr><td colspan="6" class="note">Capacidad real − ocupados = disponibles. Remontados = pallets por sobre la capacidad de su ubicación (restos en altura); no restan espacio de otras ubicaciones.</td></tr>`;
     $('caprank').innerHTML = R.pasillos.map(x => `<button data-p="${x.p}" title="Pasillo ${x.p}: ${fmt(x.ocup)} de ${fmt(x.capReal)} pallets reales"><span class="n">P${pad(x.p)}</span><span class="bar"><span class="o" style="width:${x.ocup / x.cap * 100}%"></span><span style="background:var(--alt);width:${x.capBloq / x.cap * 100}%"></span><span class="f" style="width:${x.libres / x.cap * 100}%"></span></span><span class="c">${pct(x.pctReal)} · ${fmt(x.libres)} lib.</span></button>`).join('');
